@@ -1,0 +1,79 @@
+[
+  {
+    "id": "sdzoo",
+    "name": "San Diego Zoo",
+    "type": "attraction",
+    "hours": "9:00-17:00",
+    "notes": "Large zoo with kid-friendly exhibits. Stroller-friendly. Many rest areas.",
+    "location": "2920 Zoo Dr, San Diego, CA",
+    "age_range": "0-12",
+    "duration_mins": 180,
+    "affiliate": "https://www.sandiegozoo.org/tickets"
+  },
+  {
+    "id": "balboa",
+    "name": "Balboa Park (parks + museums)",
+    "type": "park",
+    "hours": "10:00-18:00",
+    "notes": "Large park with playgrounds, museums; good for flexible days and naps in stroller.",
+    "location": "Balboa Park, San Diego, CA",
+    "age_range": "0-12",
+    "duration_mins": 180,
+    "affiliate": "https://www.balboapark.org"
+  },
+  {
+    "id": "la_jolla_cove",
+    "name": "La Jolla Cove / Beach",
+    "type": "outdoors",
+    "hours": "06:00-20:00",
+    "notes": "Beach time, tide pools, easy strolls. Bring sun protection.",
+    "location": "La Jolla Cove, San Diego, CA",
+    "age_range": "0-12",
+    "duration_mins": 180,
+    "affiliate": "https://www.sandiego.org/explore/things-to-do/beaches-bays/la-jolla-cove.aspx"
+  },
+  {
+    "id": "seaworld",
+    "name": "SeaWorld San Diego",
+    "type": "attraction",
+    "hours": "10:00-18:00",
+    "notes": "Marine shows and aquarium exhibits; good for 3+ but has toddler-friendly areas.",
+    "location": "500 Sea World Dr, San Diego, CA",
+    "age_range": "2-12",
+    "duration_mins": 240,
+    "affiliate": "https://seaworld.com/san-diego/tickets/"
+  },
+  {
+    "id": "old_town",
+    "name": "Old Town San Diego Historic Park",
+    "type": "culture",
+    "hours": "10:00-17:00",
+    "notes": "Open-air historic area with shops and casual restaurants; good for stroller access and early dinner.",
+    "location": "Old Town San Diego State Historic Park",
+    "age_range": "0-12",
+    "duration_mins": 120,
+    "affiliate": "https://www.parks.ca.gov/?page_id=663"
+  },
+  {
+    "id": "fleet_science",
+    "name": "Fleet Science Center",
+    "type": "museum",
+    "hours": "10:00-18:00",
+    "notes": "Hands-on exhibits for kids; good indoor backup for rainy or hot afternoons.",
+    "location": "1875 El Prado, San Diego, CA",
+    "age_range": "3-12",
+    "duration_mins": 120,
+    "affiliate": "https://www.rhfleet.org"
+  },
+  {
+    "id": "torrey_pines",
+    "name": "Torrey Pines State Natural Reserve (easy trails)",
+    "type": "outdoors",
+    "hours": "07:00-18:00",
+    "notes": "Short, scenic trails suitable for families (choose easy loops).",
+    "location": "12600 N Torrey Pines Rd, La Jolla, CA",
+    "age_range": "2-12",
+    "duration_mins": 120,
+    "affiliate": "https://www.parks.ca.gov/?page_id=657"
+  }
+]

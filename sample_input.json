@@ -1,0 +1,14 @@
+{
+  "profile_name": "Sample Family - Dad 35, Mom 32, daughter 5, son 2",
+  "adults": 2,
+  "kids": [
+    {"age": 5},
+    {"age": 2}
+  ],
+  "trip_length_days": 5,
+  "wake_time": "07:30",
+  "nap_window": {"start": "13:00", "end": "15:00"},
+  "preferences": {"beach": true, "museums": true, "date_night": true},
+  "destination": "San Diego",
+  "start_date": "2026-04-15"
+}

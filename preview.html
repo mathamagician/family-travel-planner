@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Family Travel Planner - Preview</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;padding:20px}
+    .day-strip{display:flex;gap:10px;overflow:auto}
+    .day{border:1px solid #ddd;padding:10px;min-width:220px}
+    .slot{margin:8px 0;padding:6px;background:#f7f7f7;border-radius:6px}
+    form .row{display:flex;gap:8px;margin-bottom:8px}
+    form input, form select{padding:6px}
+    .member{border:1px dashed #ccc;padding:8px;margin-bottom:8px}
+  </style>
+</head>
+<body>
+  <h1>Family Travel Planner - Preview</h1>
+  <div style="display:flex;gap:40px">
+    <div style="flex:320px 0 0;max-width:420px">
+      <h2>Family Profile</h2>
+      <form id="profileForm">
+        <div class="row"><input id="tripDestination" placeholder="Destination" value="San Diego"></div>
+        <div id="members"></div>
+        <button type="button" id="addMember">+ Add family member</button>
+        <h3>Global timing</h3>
+        <div class="row"><label>Get ready before leaving (mins) <input id="getReady" type="number" value="30" style="width:80px"></label></div>
+        <h3>Default Sleep schedule</h3>
+        <div class="row"><label>Wake <input id="wake" type="time" value="07:30"></label></div>
+        <div class="row"><label>Nap start <input id="napStart" type="time" value="13:00"></label> <label>Nap end <input id="napEnd" type="time" value="15:00"></label></div>
+        <h3>Interests (comma separated)</h3>
+        <div class="row"><input id="interests" placeholder="beaches,museums,parks"></div>
+        <div style="margin-top:12px">
+          <button type="submit">Generate preview</button>
+          <button type="button" id="downloadJson">Download JSON</button>
+        </div>
+      </form>
+    </div>
+    <div style="flex:1">
+      <h2>Preview</h2>
+      <div id="content">Loading itinerary...</div>
+    </div>
+  </div>
+
+  <script>
+    const membersDiv=document.getElementById('members');
+    function addMember(name='',age='', wake='', bed='', napStart='', napEnd=''){
+      const m=document.createElement('div');m.className='member';
+      m.innerHTML=`Name: <input class="m-name" value="${name}"> Age: <input class="m-age" style="width:60px" value="${age}"><br>Wake <input class="m-wake" type="time" value="${wake}"> Bed <input class="m-bed" type="time" value="${bed}"> Nap start <input class="m-nap-start" type="time" value="${napStart}"> Nap end <input class="m-nap-end" type="time" value="${napEnd}"> <button class="remove">Remove</button>`;
+      m.querySelector('.remove').onclick=()=>m.remove();
+      membersDiv.appendChild(m);
+    }
+    // seed with two adults and two kids from sample
+    addMember('Dad', '35','07:00','22:30','13:00','15:00'); addMember('Mom','32','07:30','22:30','13:00','15:00'); addMember('Daughter','5','07:30','20:00','13:00','15:00'); addMember('Son','2','07:30','19:30','13:00','15:00');
+
+    document.getElementById('addMember').addEventListener('click', ()=>addMember());
+
+    function buildProfile(){
+      const destination=document.getElementById('tripDestination').value||'San Diego';
+      const members=[...membersDiv.querySelectorAll('.member')].map(m=>({name:m.querySelector('.m-name').value, age: m.querySelector('.m-age').value, wake: m.querySelector('.m-wake').value, bed: m.querySelector('.m-bed').value, napStart: m.querySelector('.m-nap-start').value, napEnd: m.querySelector('.m-nap-end').value}));
+      const wake=document.getElementById('wake').value; const napStart=document.getElementById('napStart').value; const napEnd=document.getElementById('napEnd').value;
+      const getReady=parseInt(document.getElementById('getReady').value||30,10);
+      const interests=document.getElementById('interests').value.split(',').map(s=>s.trim()).filter(Boolean);
+      return {members,destination,wake,napStart,napEnd,getReady,interests};
+    }
+
+    function timeSubtract(t,mins){
+      if(!t) return t;
+      const d=new Date('1970-01-01T'+t);
+      d.setMinutes(d.getMinutes()-mins);
+      return d.toTimeString().slice(0,5);
+    }
+    function renderItinerary(plan){
+      const container=document.getElementById('content'); container.innerHTML='';
+      const header=document.createElement('h3'); header.textContent=(plan.profile||'Profile')+' — '+plan.destination; container.appendChild(header);
+      const meta=document.createElement('div'); meta.textContent='Get ready: '+(plan.getReady||0)+' mins'; container.appendChild(meta);
+      const strip=document.createElement('div');strip.className='day-strip';
+      (plan.days||[]).forEach(day=>{
+        const d=document.createElement('div');d.className='day';
+        const title=document.createElement('h4');title.textContent='Day '+day.day+' ('+day.date+')';d.appendChild(title);
+        day.slots.forEach(s=>{
+          const sdiv=document.createElement('div');sdiv.className='slot';
+          let startLabel=s.start||'';
+          if(s.beforeGetReady){ startLabel = timeSubtract(s.start, s.beforeGetReady)+' (leave) — activity '+s.start; }
+          sdiv.innerHTML='<strong>'+s.title+'</strong><div>'+ startLabel + ' • ' + (s.duration_mins||'')+' mins</div>';
+          d.appendChild(sdiv);
+        });
+        strip.appendChild(d);
+      });
+      container.appendChild(strip);
+    }
+
+    // load existing sample if present
+    fetch('sample_itinerary.json').then(r=>r.json()).then(plan=>{
+      // attach profile label
+      plan.profile=plan.profile||'Sample Family'; renderItinerary(plan);
+    }).catch(()=>{document.getElementById('content').textContent='No sample itinerary found. Create one with the form.'});
+
+    document.getElementById('profileForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const p=buildProfile();
+      // simple generator: 5-day sample using nap/wake and interests
+      const today=new Date();
+      const startDate=new Date(today.getFullYear(), today.getMonth(), today.getDate()+30); // arbitrary future date
+      const days=[];
+      for(let i=0;i<5;i++){
+        const date=new Date(startDate); date.setDate(startDate.getDate()+i);
+        // pick a lead member for morning timing (first adult)
+        const lead = p.members[0] || {};
+        const activityStart = lead.wake || p.wake || '07:30';
+        const leaveBefore = p.getReady||30;
+        const slots=[
+          {title: (p.interests.includes('beaches')? 'Beach time' : 'Local attraction'), start:activityStart, beforeGetReady: leaveBefore, duration_mins:180, location: p.destination},
+          {title:'Nap / Rest', start: lead.napStart || p.napStart, duration_mins:( (new Date('1970-01-01T'+(lead.napEnd||p.napEnd))-new Date('1970-01-01T'+(lead.napStart||p.napStart)))/60000 )||120},
+          {title:'Afternoon activity', start:'15:30', duration_mins:180},
+          {title:'Early dinner / unwind', start:'18:00', duration_mins:90}
+        ];
+        days.push({day:i+1, date:date.toISOString().slice(0,10), slots});
+      }
+      const profileLabel = p.members.map(m=>m.name+ (m.age? ' '+m.age:'') + (m.wake? ' (wake '+m.wake+')':'' )).join(', ');
+      const itinerary={profile:profileLabel, destination:p.destination, getReady:p.getReady, days};
+      renderItinerary(itinerary);
+      window.currentItinerary=itinerary;
+    });
+
+    document.getElementById('downloadJson').addEventListener('click', ()=>{
+      const data=window.currentItinerary||{profile:'Sample', destination:document.getElementById('tripDestination').value};
+      const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='sample_itinerary.json'; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "family-travel-planner",
+  "version": "0.1.0",
+  "description": "Customized family travel itineraries built around kids' ages, nap schedules, and age-appropriate activities",
+  "main": "generate_itinerary.js",
+  "scripts": {
+    "generate": "node generate_itinerary.js sample_input.json"
+  },
+  "author": "mathamagician",
+  "license": "MIT"
+}

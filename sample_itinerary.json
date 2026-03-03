@@ -1,0 +1,146 @@
+{
+  "profile": "Sample Family - Dad 35, Mom 32, daughter 5, son 2",
+  "destination": "San Diego",
+  "days": [
+    {
+      "day": 1,
+      "date": "2026-04-15",
+      "slots": [
+        {
+          "title": "San Diego Zoo",
+          "start": "09:00",
+          "duration_mins": 180,
+          "location": "2920 Zoo Dr, San Diego, CA"
+        },
+        {
+          "title": "Nap / Rest",
+          "start": "13:00",
+          "duration_mins": 120
+        },
+        {
+          "title": "Balboa Park (parks + museums)",
+          "start": "15:30",
+          "duration_mins": 180,
+          "location": "Balboa Park, San Diego, CA"
+        },
+        {
+          "title": "Early dinner / stroll / unwind",
+          "start": "18:00",
+          "duration_mins": 90
+        }
+      ]
+    },
+    {
+      "day": 2,
+      "date": "2026-04-16",
+      "slots": [
+        {
+          "title": "La Jolla Cove / Beach",
+          "start": "07:30",
+          "duration_mins": 180,
+          "location": "La Jolla Cove, San Diego, CA"
+        },
+        {
+          "title": "Nap / Rest",
+          "start": "13:00",
+          "duration_mins": 120
+        },
+        {
+          "title": "SeaWorld San Diego",
+          "start": "15:30",
+          "duration_mins": 240,
+          "location": "500 Sea World Dr, San Diego, CA"
+        },
+        {
+          "title": "Early dinner / stroll / unwind",
+          "start": "18:00",
+          "duration_mins": 90
+        }
+      ]
+    },
+    {
+      "day": 3,
+      "date": "2026-04-17",
+      "slots": [
+        {
+          "title": "Old Town San Diego Historic Park",
+          "start": "10:00",
+          "duration_mins": 120,
+          "location": "Old Town San Diego State Historic Park"
+        },
+        {
+          "title": "Nap / Rest",
+          "start": "13:00",
+          "duration_mins": 120
+        },
+        {
+          "title": "Fleet Science Center",
+          "start": "15:30",
+          "duration_mins": 120,
+          "location": "1875 El Prado, San Diego, CA"
+        },
+        {
+          "title": "Early dinner / stroll / unwind",
+          "start": "18:00",
+          "duration_mins": 90
+        }
+      ]
+    },
+    {
+      "day": 4,
+      "date": "2026-04-18",
+      "slots": [
+        {
+          "title": "Torrey Pines State Natural Reserve (easy trails)",
+          "start": "07:30",
+          "duration_mins": 120,
+          "location": "12600 N Torrey Pines Rd, La Jolla, CA"
+        },
+        {
+          "title": "Nap / Rest",
+          "start": "13:00",
+          "duration_mins": 120
+        },
+        {
+          "title": "San Diego Zoo",
+          "start": "15:30",
+          "duration_mins": 180,
+          "location": "2920 Zoo Dr, San Diego, CA"
+        },
+        {
+          "title": "Early dinner / stroll / unwind",
+          "start": "18:00",
+          "duration_mins": 90
+        }
+      ]
+    },
+    {
+      "day": 5,
+      "date": "2026-04-19",
+      "slots": [
+        {
+          "title": "Balboa Park (parks + museums)",
+          "start": "10:00",
+          "duration_mins": 180,
+          "location": "Balboa Park, San Diego, CA"
+        },
+        {
+          "title": "Nap / Rest",
+          "start": "13:00",
+          "duration_mins": 120
+        },
+        {
+          "title": "La Jolla Cove / Beach",
+          "start": "15:30",
+          "duration_mins": 180,
+          "location": "La Jolla Cove, San Diego, CA"
+        },
+        {
+          "title": "Early dinner / stroll / unwind",
+          "start": "18:00",
+          "duration_mins": 90
+        }
+      ]
+    }
+  ]
+}
