@@ -40,6 +40,6 @@ export async function POST(request) {
     return Response.json(parsed);
   } catch (error) {
     console.error("Activity generation error:", error);
-    return Response.json({ error: "Generation failed" }, { status: 500 });
+    return Response.json({ error: error.message || "Generation failed" }, { status: 500 });
   }
 }

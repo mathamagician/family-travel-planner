@@ -213,10 +213,11 @@ function ActivitiesStep({profile,activities,setActivities,selectedIds,setSelecte
   // Calls our backend route — API key stays on the server
   const generate=async()=>{setLoading(true);setError(null);try{
     const r=await fetch("/api/generate-activities",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({destination:profile.destination,kids:profile.kids,trip_length_days:profile.trip_length_days})});
-    if(!r.ok)throw new Error("API error "+r.status);
-    const parsed=await r.json();
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||"API error "+r.status);
+    const parsed=data;
     setActivities(parsed);setSelectedIds(new Set(parsed.map(a=>a.id)));
-  }catch(e){console.error(e);setError("Generation failed — using sample activities instead.");if(!activities.length){setActivities(SAMPLE_ACTIVITIES);setSelectedIds(new Set(SAMPLE_ACTIVITIES.map(a=>a.id)));}}finally{setLoading(false);}};
+  }catch(e){console.error(e);setError("Generation failed: "+e.message);if(!activities.length){setActivities(SAMPLE_ACTIVITIES);setSelectedIds(new Set(SAMPLE_ACTIVITIES.map(a=>a.id)));}}finally{setLoading(false);}};
 
   useEffect(()=>{if(!activities.length){setActivities(SAMPLE_ACTIVITIES);setSelectedIds(new Set(SAMPLE_ACTIVITIES.map(a=>a.id)));}},[]);
   const toggle=id=>{const n=new Set(selectedIds);n.has(id)?n.delete(id):n.add(id);setSelectedIds(n);};
