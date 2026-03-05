@@ -2,38 +2,19 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const SYSTEM_PROMPT = `You are a family travel packing expert specializing in trips with young children.
+const SYSTEM_PROMPT = `You are a family travel packing expert.
 
-Generate a practical, comprehensive packing checklist based on the trip details provided.
+Output ONLY a raw JSON array (no markdown, no code fences, no explanation). Start your response with [ and end with ].
 
-CRITICAL: Respond with ONLY a valid JSON array. No markdown, no explanation.
+Generate 25-35 practical packing items. Each item:
+{"id":"snake_id","category":"documents|clothing|baby_gear|toiletries|health_safety|activities|snacks|tech|outdoor|misc","name":"Item name","quantity":1,"quantity_note":"1 per day or null","notes":"One brief tip or null","essential":true,"age_relevant":false,"affiliate_search":"amazon search query or null","affiliate_url":null}
 
-Each item object:
-{
-  "id": "unique_snake_id",
-  "category": "one of: documents|clothing|baby_gear|toiletries|health_safety|activities|snacks|tech|outdoor|misc",
-  "name": "Item name",
-  "quantity": <number or null for 'as needed'>,
-  "quantity_note": "<e.g. '1 per day', '2 per child', null>",
-  "notes": "<practical tip or why it's important, null if obvious>",
-  "essential": true | false,
-  "age_relevant": true | false,
-  "affiliate_search": "<short Amazon/REI search query for this item, null if no purchase needed>",
-  "affiliate_url": null
-}
-
-PACKING PHILOSOPHY:
-- Group items by category for easy packing
-- Mark truly essential items (the ones you cannot forget)
-- For each child's age group, include age-appropriate items:
-  - Infants (0-1): diapers, formula/nursing supplies, portable crib, carrier
-  - Toddlers (1-3): pull-ups or diapers, sippy cups, portacrib, baby monitor, toddler utensils
-  - Preschool (3-5): sun protection, water bottle, small backpack
-  - School age (5-12): entertainment, headphones, sunscreen
-- Include outdoor-specific gear if destination has hiking/camping activities
-- Include first aid essentials for families
-- Beach trips need different gear than city or mountain trips
-- Keep it practical — no "nice to haves" unless they significantly improve family travel`;
+Rules:
+- essential:true only for truly critical items
+- notes: one sentence max, null if obvious
+- Include age-appropriate items for each child
+- Beach/outdoor trips need relevant gear
+- 25-35 items total, no more`;
 
 export async function POST(request) {
   try {
@@ -54,7 +35,7 @@ export async function POST(request) {
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 8000,
+      max_tokens: 4000,
       system: SYSTEM_PROMPT,
       messages: [{
         role: "user",
@@ -74,27 +55,27 @@ export async function POST(request) {
     const text = message.content.filter(b => b.type === "text").map(b => b.text).join("");
     if (!text) throw new Error("Empty response from AI");
 
-    // Strategy 1: strip markdown fences and parse directly
     let items;
-    try {
-      const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-      const parsed = JSON.parse(cleaned);
-      items = Array.isArray(parsed) ? parsed : (parsed.items ?? parsed.packing_list ?? null);
-    } catch {
-      // Strategy 2: find JSON array anywhere in the text
-      const arrayMatch = text.match(/\[[\s\S]*\]/);
-      if (!arrayMatch) {
-        console.error("Packing list raw response:", text.slice(0, 500));
-        throw new Error(`No JSON found in response. Preview: "${text.slice(0, 150)}"`);
-      }
-      try {
-        items = JSON.parse(arrayMatch[0]);
-      } catch (parseErr) {
-        throw new Error(`JSON parse failed: ${parseErr.message}. Preview: "${text.slice(0, 150)}"`);
+
+    // Strategy 1: slice from first [ to last ] and parse
+    const start = text.indexOf("[");
+    const end   = text.lastIndexOf("]");
+    if (start !== -1 && end > start) {
+      try { items = JSON.parse(text.slice(start, end + 1)); } catch { /* fall through */ }
+    }
+
+    // Strategy 2: response truncated — close the array at last complete object
+    if (!Array.isArray(items) && start !== -1) {
+      const lastBrace = text.lastIndexOf("}");
+      if (lastBrace > start) {
+        try { items = JSON.parse(text.slice(start, lastBrace + 1) + "]"); } catch { /* fall through */ }
       }
     }
 
-    if (!Array.isArray(items)) throw new Error("Unexpected response format — not an array");
+    if (!Array.isArray(items) || items.length === 0) {
+      console.error("Packing list raw response:", text.slice(0, 500));
+      throw new Error(`Failed to parse response. Preview: "${text.slice(0, 200)}"`);
+    }
 
     return Response.json({ items, destination });
   } catch (error) {
