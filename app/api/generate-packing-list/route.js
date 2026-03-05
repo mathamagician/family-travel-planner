@@ -56,30 +56,23 @@ export async function POST(request) {
       model: "claude-sonnet-4-6",
       max_tokens: 8000,
       system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content:
-            `Generate a family packing list for:\n` +
-            `Destination: ${destination}\n` +
-            `Trip length: ${profile.trip_length_days ?? "?"} days\n` +
-            `Adults: ${profile.adults ?? 2}\n` +
-            `Children: ${kidsInfo || "none specified"}\n` +
-            `Activity types: ${activityTypes || "general sightseeing"}\n` +
-            `Outdoor trip: ${hasOutdoor ? "yes" : "no"}\n` +
-            `Beach activities: ${hasBeach ? "yes" : "no"}\n` +
-            `Return ONLY a JSON array with all required fields.`,
-        },
-        // Assistant prefill forces Claude to start the JSON array immediately,
-        // eliminating any preamble text that breaks parsing.
-        { role: "assistant", content: "[" },
-      ],
+      messages: [{
+        role: "user",
+        content:
+          `Generate a family packing list for:\n` +
+          `Destination: ${destination}\n` +
+          `Trip length: ${profile.trip_length_days ?? "?"} days\n` +
+          `Adults: ${profile.adults ?? 2}\n` +
+          `Children: ${kidsInfo || "none specified"}\n` +
+          `Activity types: ${activityTypes || "general sightseeing"}\n` +
+          `Outdoor trip: ${hasOutdoor ? "yes" : "no"}\n` +
+          `Beach activities: ${hasBeach ? "yes" : "no"}\n` +
+          `Respond with ONLY a JSON array starting with [ and ending with ]. No other text.`,
+      }],
     });
 
-    // Prepend the "[" we used as assistant prefill
-    const rawText = message.content.filter(b => b.type === "text").map(b => b.text).join("");
-    const text = "[" + rawText;
-    if (rawText === "") throw new Error("Empty response from AI");
+    const text = message.content.filter(b => b.type === "text").map(b => b.text).join("");
+    if (!text) throw new Error("Empty response from AI");
 
     // Strategy 1: strip markdown fences and parse directly
     let items;
