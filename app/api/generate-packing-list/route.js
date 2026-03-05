@@ -56,29 +56,52 @@ export async function POST(request) {
       model: "claude-sonnet-4-6",
       max_tokens: 8000,
       system: SYSTEM_PROMPT,
-      messages: [{
-        role: "user",
-        content:
-          `Generate a family packing list for:\n` +
-          `Destination: ${destination}\n` +
-          `Trip length: ${profile.trip_length_days ?? "?"} days\n` +
-          `Adults: ${profile.adults ?? 2}\n` +
-          `Children: ${kidsInfo || "none specified"}\n` +
-          `Activity types: ${activityTypes || "general sightseeing"}\n` +
-          `Outdoor trip: ${hasOutdoor ? "yes" : "no"}\n` +
-          `Beach activities: ${hasBeach ? "yes" : "no"}\n` +
-          `Return ONLY a JSON array with all required fields.`,
-      }],
+      messages: [
+        {
+          role: "user",
+          content:
+            `Generate a family packing list for:\n` +
+            `Destination: ${destination}\n` +
+            `Trip length: ${profile.trip_length_days ?? "?"} days\n` +
+            `Adults: ${profile.adults ?? 2}\n` +
+            `Children: ${kidsInfo || "none specified"}\n` +
+            `Activity types: ${activityTypes || "general sightseeing"}\n` +
+            `Outdoor trip: ${hasOutdoor ? "yes" : "no"}\n` +
+            `Beach activities: ${hasBeach ? "yes" : "no"}\n` +
+            `Return ONLY a JSON array with all required fields.`,
+        },
+        // Assistant prefill forces Claude to start the JSON array immediately,
+        // eliminating any preamble text that breaks parsing.
+        { role: "assistant", content: "[" },
+      ],
     });
 
-    const text = message.content.filter(b => b.type === "text").map(b => b.text).join("");
+    // Prepend the "[" we used as assistant prefill
+    const rawText = message.content.filter(b => b.type === "text").map(b => b.text).join("");
+    const text = "[" + rawText;
+    if (rawText === "") throw new Error("Empty response from AI");
 
-    // Extract JSON array even if Claude adds preamble or wraps in code block
-    const arrayMatch = text.match(/\[[\s\S]*\]/);
-    if (!arrayMatch) throw new Error("No JSON array found in response");
-    const items = JSON.parse(arrayMatch[0]);
+    // Strategy 1: strip markdown fences and parse directly
+    let items;
+    try {
+      const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
+      const parsed = JSON.parse(cleaned);
+      items = Array.isArray(parsed) ? parsed : (parsed.items ?? parsed.packing_list ?? null);
+    } catch {
+      // Strategy 2: find JSON array anywhere in the text
+      const arrayMatch = text.match(/\[[\s\S]*\]/);
+      if (!arrayMatch) {
+        console.error("Packing list raw response:", text.slice(0, 500));
+        throw new Error(`No JSON found in response. Preview: "${text.slice(0, 150)}"`);
+      }
+      try {
+        items = JSON.parse(arrayMatch[0]);
+      } catch (parseErr) {
+        throw new Error(`JSON parse failed: ${parseErr.message}. Preview: "${text.slice(0, 150)}"`);
+      }
+    }
 
-    if (!Array.isArray(items)) throw new Error("Unexpected response format");
+    if (!Array.isArray(items)) throw new Error("Unexpected response format — not an array");
 
     return Response.json({ items, destination });
   } catch (error) {
