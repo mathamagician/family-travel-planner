@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
-// ── Constants ─────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────
 
 const TYPE_CONFIG = {
   attraction:    { emoji: "🎢", color: "#CF4B3A", bg: "#FEF2F1" },
@@ -20,8 +20,18 @@ const TYPE_CONFIG = {
   free:          { emoji: "✨", color: "#9CA3AF", bg: "#FAFAF7" },
 };
 
-const PX_PER_MIN = 1.2;   // pixel height per minute on the calendar
-const SNAP_MINS  = 15;    // drag snaps to 15-minute increments
+const CAT_LABELS = {
+  full_day: "Full Day",
+  half_day: "Half Day",
+  "2-4h": "2–4h",
+  "1-2h": "1–2h",
+  under_1h: "<1h",
+};
+
+const PX_PER_MIN = 1.2;
+const SNAP_MINS  = 15;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 function timeToMins(t) {
   if (!t) return 0;
@@ -42,6 +52,69 @@ function formatDateShort(ds) {
 }
 function snap(mins) {
   return Math.round(mins / SNAP_MINS) * SNAP_MINS;
+}
+
+// ── Block Notes Modal ──────────────────────────────────────────────────────
+
+function BlockNotesModal({ block, onSave, onClose }) {
+  const [notes, setNotes] = useState(block.notes ?? "");
+  const c = TYPE_CONFIG[block.type] || TYPE_CONFIG.custom;
+  const catLabel = block.duration_category ? CAT_LABELS[block.duration_category] : null;
+
+  return (
+    <div style={{ position:"fixed",inset:0,background:"rgba(28,43,51,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,padding:20 }}>
+      <div style={{ background:"#fff",borderRadius:20,padding:"28px 24px",width:"100%",maxWidth:380,fontFamily:"'Nunito',sans-serif",boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6 }}>
+          <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+            <span style={{ fontSize:20 }}>{c.emoji}</span>
+            <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:800,margin:0,color:"#1C2B33" }}>{block.title}</h3>
+          </div>
+          <button onClick={onClose} style={{ background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#8A9BA5",lineHeight:1 }}>×</button>
+        </div>
+
+        <div style={{ display:"flex",gap:8,marginBottom:10,flexWrap:"wrap" }}>
+          <span style={{ fontSize:11,color:"#8A9BA5",fontWeight:600 }}>
+            {formatTime12(block.start)} · {block.duration_mins}m
+          </span>
+          {catLabel && (
+            <span style={{ fontSize:10,fontWeight:700,color:c.color,background:c.bg,padding:"1px 6px",borderRadius:4 }}>
+              {catLabel}
+            </span>
+          )}
+        </div>
+
+        {block.location_name && (
+          <p style={{ fontSize:11,color:"#8A9BA5",marginBottom:14,display:"flex",alignItems:"center",gap:4 }}>
+            📍 <span style={{ overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{block.location_name}</span>
+          </p>
+        )}
+
+        <label style={{ display:"block",fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8A9BA5",marginBottom:6 }}>
+          Notes
+        </label>
+        <textarea
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          rows={4}
+          autoFocus
+          placeholder="Add reminders, tips, or anything useful…"
+          style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:"2px solid #F0EDE8",fontSize:13,fontWeight:600,boxSizing:"border-box",resize:"vertical",fontFamily:"'Nunito',sans-serif",lineHeight:1.5 }}
+        />
+
+        <div style={{ display:"flex",gap:8,marginTop:14 }}>
+          <button
+            onClick={() => onSave(notes)}
+            style={{ flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"linear-gradient(135deg,#E8643A,#F09A3A)",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer" }}
+          >
+            Save Notes
+          </button>
+          <button onClick={onClose} style={{ padding:"11px 18px",borderRadius:10,border:"2px solid #F0EDE8",background:"transparent",color:"#8A9BA5",fontSize:13,fontWeight:700,cursor:"pointer" }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Custom Block Modal ─────────────────────────────────────────────────────
@@ -114,12 +187,11 @@ function CustomBlockModal({ startTime, onSave, onClose }) {
 
 // ── Day Column ─────────────────────────────────────────────────────────────
 
-function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBlock, onAddBlock, onDropFromSidebar, dragState, setDragState }) {
+function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBlock, onAddBlock, onDropFromSidebar, onResizeStart, onBlockClick, dragState, setDragState, activeResizeHandleRef }) {
   const colRef = useRef(null);
   const totalMins = bedMins - wakeMins;
   const height = totalMins * PX_PER_MIN;
 
-  // Convert pixel Y offset (relative to column top) to snapped minutes from wake
   const pxToMins = useCallback((py) => {
     return snap(Math.max(0, Math.min(totalMins - 15, Math.round(py / PX_PER_MIN))));
   }, [totalMins]);
@@ -128,8 +200,7 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
     if (e.target !== colRef.current && !e.target.classList.contains("cal-empty")) return;
     const rect = colRef.current.getBoundingClientRect();
     const minsFromWake = pxToMins(e.clientY - rect.top);
-    const startTime = minsToTime(wakeMins + minsFromWake);
-    onAddBlock(dayIndex, startTime);
+    onAddBlock(dayIndex, minsToTime(wakeMins + minsFromWake));
   };
 
   const handleDragOver = (e) => {
@@ -146,7 +217,6 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
     const rect = colRef.current.getBoundingClientRect();
     const minsFromWake = pxToMins(e.clientY - rect.top - (dragState.offsetPx ?? 0));
     const newStart = minsToTime(wakeMins + minsFromWake);
-
     if (dragState.source === "sidebar") {
       onDropFromSidebar(dayIndex, newStart, dragState.activity);
     } else {
@@ -159,11 +229,10 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
   const hourLines = [];
   for (let m = 0; m <= totalMins; m += 60) {
     const timeStr = minsToTime(wakeMins + m);
-    const isHour = m % 60 === 0;
     hourLines.push(
-      <div key={m} style={{ position:"absolute",top:m*PX_PER_MIN,left:0,right:0,borderTop:`1px ${isHour?"solid #E8E4DF":"dashed #F0EDE8"}`,pointerEvents:"none" }}>
-        {isHour && m < totalMins && (
-          <span style={{ position:"absolute",top:-9,left:2,fontSize:9,fontWeight:700,color:"#8A9BA5",background:"transparent",lineHeight:1 }}>
+      <div key={m} style={{ position:"absolute",top:m*PX_PER_MIN,left:0,right:0,borderTop:`1px ${m%60===0?"solid #E8E4DF":"dashed #F0EDE8"}`,pointerEvents:"none" }}>
+        {m % 60 === 0 && m < totalMins && (
+          <span style={{ position:"absolute",top:-9,left:2,fontSize:9,fontWeight:700,color:"#8A9BA5",lineHeight:1 }}>
             {formatTime12(timeStr)}
           </span>
         )}
@@ -186,30 +255,45 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
         overflow:"hidden", transition:"background .15s,border-color .15s", cursor:"crosshair",
       }}
     >
-      {/* Hour grid */}
       {hourLines}
 
-      {/* Blocks */}
       {day.slots.map((slot) => {
         const startM = timeToMins(slot.start) - wakeMins;
         const dur = slot.duration_mins ?? 60;
-        const top = startM * PX_PER_MIN;
-        const blockH = Math.max(dur * PX_PER_MIN - 2, 24);
-        const isFixed = slot.type === "nap" || slot.type === "meal" || (slot.type === "rest" && slot.title !== "Free Time");
+        const blockH = Math.max(dur * PX_PER_MIN - 2, 36);
+
+        // nap = draggable + resizable, no delete; fixed = truly immovable
+        const isNap = slot.type === "nap";
+        const isFixed = slot.type === "meal" || (slot.type === "rest" && slot.title !== "Free Time");
+        const isDraggable = !isFixed;
+        const showDelete = !isFixed && !isNap;
+
         const c = TYPE_CONFIG[slot.type] || TYPE_CONFIG[slot.block_type] || TYPE_CONFIG.custom;
+        const catLabel = slot.duration_category ? CAT_LABELS[slot.duration_category] : null;
+        const blockId = slot.id ?? `${slot.start}-${slot.title}`;
+        const isBeingDragged = dragState.active && dragState.blockId === blockId;
+
+        const blockBg    = isNap ? "#F3F4F6" : isFixed ? "#FFF9F0" : c.bg;
+        const blockBorder = isNap ? "#D1D5DB" : isFixed ? "#F59E0B55" : c.color + "55";
+        const labelColor  = isNap ? "#9CA3AF" : isFixed ? "#B45309" : c.color;
+        const handleColor = isNap ? "#D1D5DB" : c.color + "66";
+        const titleEmoji  = isNap ? "😴 " : isFixed ? "🍽️ " : (c.emoji + " ");
 
         return (
           <div
-            key={slot.id ?? `${slot.start}-${slot.title}`}
-            draggable={!isFixed}
+            key={blockId}
+            draggable={isDraggable}
+            onClick={(e) => {
+              // Don't open notes if clicking came from a stopPropagation child
+              if (e.defaultPrevented) return;
+              onBlockClick(dayIndex, slot);
+            }}
             onDragStart={(e) => {
-              if (isFixed) { e.preventDefault(); return; }
+              if (isFixed || activeResizeHandleRef.current) { e.preventDefault(); return; }
               const rect = e.currentTarget.getBoundingClientRect();
               setDragState({
-                active: true,
-                source: "calendar",
-                fromDay: dayIndex,
-                blockId: slot.id ?? `${slot.start}-${slot.title}`,
+                active: true, source: "calendar",
+                fromDay: dayIndex, blockId,
                 slotRef: slot,
                 offsetPx: e.clientY - rect.top,
               });
@@ -218,40 +302,86 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
             onDragEnd={() => setDragState({ active: false })}
             style={{
               position:"absolute",
-              top, left:4, right:4,
+              top: startM * PX_PER_MIN, left:4, right:4,
               height: blockH,
-              background: isFixed ? (slot.type === "nap" ? "#F3F4F6" : "#FFF9F0") : c.bg,
-              border: `1.5px solid ${isFixed ? "#D1D5DB" : c.color + "55"}`,
-              borderRadius:8, padding:"3px 6px", overflow:"hidden",
+              background: blockBg,
+              border: `1.5px solid ${blockBorder}`,
+              borderRadius:8,
+              overflow:"hidden",
               cursor: isFixed ? "default" : "grab",
               boxSizing:"border-box",
               zIndex: isFixed ? 1 : 2,
-              opacity: dragState.active && dragState.blockId === (slot.id ?? `${slot.start}-${slot.title}`) ? 0.4 : 1,
+              opacity: isBeingDragged ? 0.4 : 1,
+              display:"flex", flexDirection:"column",
             }}
           >
-            <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:2 }}>
-              <div style={{ minWidth:0, flex:1 }}>
-                <div style={{ fontSize:9,fontWeight:800,color:isFixed?"#9CA3AF":c.color,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.3 }}>
-                  {(isFixed ? (slot.type === "nap" ? "😴 " : "🍽️ ") : (c.emoji + " ")) + slot.title}
-                </div>
-                {blockH > 32 && (
-                  <div style={{ fontSize:8,fontWeight:600,color:"#8A9BA5",marginTop:1 }}>
-                    {formatTime12(slot.start)} · {slot.duration_mins}m
+            {/* Content area — click opens notes modal */}
+            <div style={{ flex:1, padding:"3px 5px 0", overflow:"hidden", minHeight:0 }}>
+              <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:2 }}>
+                <div style={{ minWidth:0, flex:1 }}>
+                  {/* Title + category badge */}
+                  <div style={{ display:"flex",alignItems:"center",gap:3,flexWrap:"wrap" }}>
+                    <span style={{ fontSize:9,fontWeight:800,color:labelColor,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.4 }}>
+                      {titleEmoji + slot.title}
+                    </span>
+                    {catLabel && blockH > 38 && (
+                      <span style={{ fontSize:8,fontWeight:700,color:labelColor,background:isNap?"#E5E7EB":c.bg,padding:"0 4px",borderRadius:3,whiteSpace:"nowrap",flexShrink:0,lineHeight:"14px",border:`1px solid ${isNap?"#D1D5DB":c.color+"33"}` }}>
+                        {catLabel}
+                      </span>
+                    )}
                   </div>
+                  {/* Time + duration */}
+                  {blockH > 34 && (
+                    <div style={{ fontSize:8,fontWeight:600,color:"#8A9BA5",marginTop:1,lineHeight:1.3 }}>
+                      {formatTime12(slot.start)} · {slot.duration_mins}m
+                    </div>
+                  )}
+                  {/* Location */}
+                  {slot.location_name && blockH > 52 && (
+                    <div style={{ fontSize:8,color:"#8A9BA5",marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.3 }}>
+                      📍 {slot.location_name}
+                    </div>
+                  )}
+                  {/* Notes indicator */}
+                  {slot.notes && blockH > 46 && (
+                    <div style={{ fontSize:8,color:"#8A9BA5",marginTop:1,lineHeight:1.3 }}>✏️ note</div>
+                  )}
+                </div>
+
+                {showDelete && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemoveBlock(dayIndex, blockId); }}
+                    style={{ background:"none",border:"none",color:"#9CA3AF",cursor:"pointer",fontSize:10,padding:"0 2px",lineHeight:1,flexShrink:0 }}
+                  >×</button>
                 )}
               </div>
-              {!isFixed && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onRemoveBlock(dayIndex, slot.id ?? `${slot.start}-${slot.title}`); }}
-                  style={{ background:"none",border:"none",color:"#9CA3AF",cursor:"pointer",fontSize:10,padding:"0 2px",lineHeight:1,flexShrink:0 }}
-                >×</button>
-              )}
             </div>
+
+            {/* Resize handle — bottom strip, drag to extend/shrink */}
+            {!isFixed && (
+              <div
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onResizeStart(blockId, dayIndex, slot.duration_mins, e.clientY);
+                }}
+                style={{
+                  height:8, flexShrink:0,
+                  borderTop:`1px solid ${handleColor}`,
+                  cursor:"ns-resize",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  background:"transparent",
+                }}
+              >
+                <div style={{ width:18,height:2,borderRadius:1,background:handleColor }} />
+              </div>
+            )}
           </div>
         );
       })}
 
-      {/* Drop preview */}
+      {/* Drop preview indicator */}
       {dragState.active && dragState.overDay === dayIndex && dragState.overMin != null && (
         <div style={{
           position:"absolute",
@@ -293,7 +423,6 @@ function CalendarSidebar({ unplaced, onDragStart }) {
               padding:"7px 8px", borderRadius:9, marginBottom:5,
               background:c.bg, border:`1.5px solid ${c.color}33`,
               display:"flex", alignItems:"center", gap:6, cursor:"grab",
-              transition:"transform .15s,box-shadow .15s",
             }}
             onMouseDown={e => e.currentTarget.style.transform="scale(1.03)"}
             onMouseUp={e => e.currentTarget.style.transform=""}
@@ -302,7 +431,7 @@ function CalendarSidebar({ unplaced, onDragStart }) {
             <div style={{ flex:1,minWidth:0 }}>
               <div style={{ fontSize:11,fontWeight:700,color:"#1C2B33",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{a.name}</div>
               <div style={{ fontSize:9,fontWeight:600,color:"#8A9BA5",marginTop:1 }}>
-                {a.duration_category ?? (a.duration_mins_typical ? Math.round(a.duration_mins_typical/60*10)/10+"h" : "")}
+                {a.duration_category ? (CAT_LABELS[a.duration_category] ?? a.duration_category) : (a.duration_mins_typical ? Math.round(a.duration_mins_typical/60*10)/10+"h" : "")}
               </div>
             </div>
           </div>
@@ -322,27 +451,66 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
     }))
   );
   const [dragState, setDragState] = useState({ active: false });
-  const [showAddModal, setShowAddModal] = useState(null); // { dayIndex, startTime }
+  const [showAddModal, setShowAddModal] = useState(null);   // { dayIndex, startTime }
+  const [editingNotes, setEditingNotes] = useState(null);   // { dayIndex, blockId }
+
+  // Refs for resize operation
+  const resizeRef = useRef(null); // { blockId, dayIndex, startDuration, startY }
+  const activeResizeHandleRef = useRef(false);
 
   const wakeMins = timeToMins(profile?.wake_time ?? "07:00");
   const bedMins  = timeToMins(profile?.bed_time  ?? "20:00");
 
-  // Activities not yet scheduled on any day
-  const placedIds = new Set(days.flatMap(d => d.slots.map(s => s.activityId).filter(Boolean)));
-  const selectedActivities = (activities ?? []).filter(a => selectedIds?.has(a.id));
-  const unplaced = selectedActivities.filter(a => !placedIds.has(a.id));
+  // Global mouse handlers for block resizing
+  useEffect(() => {
+    const onMouseMove = (e) => {
+      if (!resizeRef.current) return;
+      const { blockId, dayIndex, startDuration, startY } = resizeRef.current;
+      const deltaPx   = e.clientY - startY;
+      const deltaMins = Math.round(deltaPx / PX_PER_MIN / SNAP_MINS) * SNAP_MINS;
+      const newDur    = Math.max(SNAP_MINS, startDuration + deltaMins);
+      setDays(prev => prev.map((d, i) => {
+        if (i !== dayIndex) return d;
+        return { ...d, slots: d.slots.map(s => s.id === blockId ? { ...s, duration_mins: newDur } : s) };
+      }));
+    };
+    const onMouseUp = () => {
+      if (resizeRef.current) {
+        resizeRef.current = null;
+        activeResizeHandleRef.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
 
-  // ── Mutations ────────────────────────────────────────────────────────────
+  // ── Callbacks ─────────────────────────────────────────────────────────────
+
+  const handleResizeStart = useCallback((blockId, dayIndex, startDuration, clientY) => {
+    resizeRef.current = { blockId, dayIndex, startDuration, startY: clientY };
+    activeResizeHandleRef.current = true;
+    document.body.style.cursor = "ns-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
+  const handleBlockClick = useCallback((dayIndex, slot) => {
+    setEditingNotes({ dayIndex, blockId: slot.id });
+  }, []);
 
   const moveBlock = (fromDay, blockId, toDay, newStart) => {
     setDays(prev => {
       const next = prev.map(d => ({ ...d, slots: [...d.slots] }));
       const srcDay = next[fromDay];
-      const blockIdx = srcDay.slots.findIndex(s => s.id === blockId);
-      if (blockIdx === -1) return prev;
-      const block = { ...srcDay.slots[blockIdx], start: newStart };
-      srcDay.slots.splice(blockIdx, 1);
-      // Insert into target day, sorted by start time
+      const idx = srcDay.slots.findIndex(s => s.id === blockId);
+      if (idx === -1) return prev;
+      const block = { ...srcDay.slots[idx], start: newStart };
+      srcDay.slots.splice(idx, 1);
       next[toDay].slots.push(block);
       next[toDay].slots.sort((a, b) => timeToMins(a.start) - timeToMins(b.start));
       return next;
@@ -394,13 +562,28 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
     }));
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  const updateBlockNotes = (dayIndex, blockId, notes) => {
+    setDays(prev => prev.map((d, i) => {
+      if (i !== dayIndex) return d;
+      return { ...d, slots: d.slots.map(s => s.id === blockId ? { ...s, notes } : s) };
+    }));
+    setEditingNotes(null);
+  };
 
-  // Split days into weeks
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  const placedIds = new Set(days.flatMap(d => d.slots.map(s => s.activityId).filter(Boolean)));
+  const selectedActivities = (activities ?? []).filter(a => selectedIds?.has(a.id));
+  const unplaced = selectedActivities.filter(a => !placedIds.has(a.id));
+
+  // Resolve editing block from state
+  const editingBlock = editingNotes
+    ? days[editingNotes.dayIndex]?.slots.find(s => s.id === editingNotes.blockId)
+    : null;
+
   const weeks = [];
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7).map((d, j) => ({ ...d, _idx: i + j })));
 
-  // Synthesize an itinerary object for SaveTripButton
   const currentItinerary = {
     destination: profile?.destination ?? itinerary?.destination,
     profile: itinerary?.profile,
@@ -416,7 +599,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
           {profile?.destination ?? itinerary?.destination} Itinerary
         </h2>
         <p style={{ color:"#8A9BA5",fontSize:13,marginTop:4 }}>
-          Click any empty area to add a block · Drag activities from the sidebar · Drag blocks to reschedule
+          Click a block to add notes · Drag to reschedule · Drag bottom handle to resize
         </p>
       </div>
 
@@ -427,15 +610,11 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
       </div>
 
       <div style={{ display:"flex",gap:16,alignItems:"flex-start" }}>
-        {/* Sidebar */}
         <CalendarSidebar
           unplaced={unplaced}
-          onDragStart={(activity) =>
-            setDragState({ active: true, source: "sidebar", activity })
-          }
+          onDragStart={(activity) => setDragState({ active: true, source: "sidebar", activity })}
         />
 
-        {/* Calendar grid */}
         <div style={{ flex:1,minWidth:0 }}>
           {weeks.map((week, wi) => (
             <div key={wi} style={{ marginBottom:28 }}>
@@ -449,11 +628,10 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
                   const isWE = (() => { const d = new Date(day.date + "T00:00:00"); return d.getDay() === 0 || d.getDay() === 6; })();
                   return (
                     <div key={day.day} style={{ flexShrink:0 }}>
-                      {/* Day header */}
                       <div style={{
                         width:160, padding:"8px 10px", borderRadius:"10px 10px 0 0",
                         background: isWE ? "linear-gradient(135deg,#FFF3E0,#FFF9F0)" : "linear-gradient(135deg,#E6F6F8,#F0FAFB)",
-                        border:"1px solid #E8E4DF", borderBottom:"none", marginBottom:0,
+                        border:"1px solid #E8E4DF", borderBottom:"none",
                       }}>
                         <div style={{ fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:800,color:"#1C2B33" }}>Day {day.day}</div>
                         <div style={{ fontSize:10,fontWeight:600,color:isWE?"#E8643A":"#0B7A8E",marginTop:1 }}>{formatDateShort(day.date)}</div>
@@ -463,7 +641,6 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
                         >+ Add block</button>
                       </div>
 
-                      {/* Day column */}
                       <DayColumn
                         day={day}
                         dayIndex={day._idx}
@@ -471,10 +648,13 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
                         bedMins={bedMins}
                         onMoveBlock={moveBlock}
                         onRemoveBlock={removeBlock}
-                        onAddBlock={(dayIdx, startTime) => setShowAddModal({ dayIndex: dayIdx, startTime })}
+                        onAddBlock={(di, st) => setShowAddModal({ dayIndex: di, startTime: st })}
                         onDropFromSidebar={dropFromSidebar}
+                        onResizeStart={handleResizeStart}
+                        onBlockClick={handleBlockClick}
                         dragState={dragState}
                         setDragState={setDragState}
+                        activeResizeHandleRef={activeResizeHandleRef}
                       />
                     </div>
                   );
@@ -483,18 +663,14 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
             </div>
           ))}
 
-          {/* Save trip + Packing List + JSON export */}
           <div style={{ display:"flex",justifyContent:"center",marginTop:16,gap:12,flexWrap:"wrap",alignItems:"center" }}>
-            {SaveTripButtonComponent && (
-              <SaveTripButtonComponent itinerary={currentItinerary} />
-            )}
+            {SaveTripButtonComponent && <SaveTripButtonComponent itinerary={currentItinerary} />}
             {onNextStep && (
               <button onClick={onNextStep} style={{
                 padding:"11px 24px",borderRadius:12,border:"none",
                 background:"linear-gradient(135deg,#7C3AED,#4F46E5)",
                 color:"#fff",fontSize:13,fontWeight:800,cursor:"pointer",
-                boxShadow:"0 6px 20px rgba(124,58,237,.25)",
-                fontFamily:"'Nunito',sans-serif",
+                boxShadow:"0 6px 20px rgba(124,58,237,.25)",fontFamily:"'Nunito',sans-serif",
               }}>
                 🧳 Build Packing List →
               </button>
@@ -516,6 +692,15 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
           startTime={showAddModal.startTime}
           onSave={(block) => addCustomBlock(showAddModal.dayIndex, block)}
           onClose={() => setShowAddModal(null)}
+        />
+      )}
+
+      {/* Notes editor modal */}
+      {editingBlock && (
+        <BlockNotesModal
+          block={editingBlock}
+          onSave={(notes) => updateBlockNotes(editingNotes.dayIndex, editingNotes.blockId, notes)}
+          onClose={() => setEditingNotes(null)}
         />
       )}
     </div>
