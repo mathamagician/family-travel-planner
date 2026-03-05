@@ -17,9 +17,11 @@ const CATEGORY_CONFIG = {
 
 const CATEGORY_ORDER = ["documents", "health_safety", "baby_gear", "clothing", "toiletries", "snacks", "activities", "tech", "outdoor", "misc"];
 
+const AMAZON_TAG = process.env.NEXT_PUBLIC_AMAZON_AFFILIATE_TAG ?? "familytravel0a-20";
+
 function AffiliateButton({ searchQuery }) {
   if (!searchQuery) return null;
-  const url = `https://www.amazon.com/s?tag=familytravel0a-20&k=${encodeURIComponent(searchQuery)}`;
+  const url = `https://www.amazon.com/s?tag=${AMAZON_TAG}&k=${encodeURIComponent(searchQuery)}`;
   return (
     <a href={url} target="_blank" rel="noopener noreferrer"
       style={{
