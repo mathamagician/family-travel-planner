@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSupabase } from "./Providers";
+import UserMenu from "./UserMenu";
+import MyTripsPanel from "./MyTripsPanel";
+import SaveTripButton from "./SaveTripButton";
+import WeeklyCalendar from "./WeeklyCalendar";
+import PackingList from "./PackingList";
 
 /* ─────────────────────────────────────────────
    CONFIG & CONSTANTS
@@ -58,20 +64,101 @@ function formatTime12(t) { const [h,m] = t.split(":").map(Number); return (h%12|
 function addDays(ds,n) { const d=new Date(ds+"T00:00:00"); d.setDate(d.getDate()+n); return d.toISOString().split("T")[0]; }
 function formatDateShort(ds) { return new Date(ds+"T00:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}); }
 
-/* ─── ITINERARY GENERATION ─── */
+/* ─── ITINERARY GENERATION — Phase B: Duration-aware genius scheduler ─── */
+
+// Duration category → preferred minutes (used for scheduling decisions)
+const CAT_MINS = { "full_day":480, "half_day":240, "2-4h":180, "1-2h":90, "under_1h":45 };
+
+function activityDuration(act) {
+  return CAT_MINS[act.duration_category] ?? act.duration_mins_typical ?? act.duration_mins ?? 90;
+}
 
 function generateItinerary(profile, selectedActivities) {
   const wake=timeToMins(profile.wake_time), bed=timeToMins(profile.bed_time);
   const naps=profile.naps.map(n=>({start:timeToMins(n.start),end:timeToMins(n.start)+n.duration})).sort((a,b)=>a.start-b.start);
-  function getFreeWindows(){const w=[];let c=wake;for(const n of naps){if(n.start>c+30)w.push({start:c,end:n.start,type:"free"});w.push({start:n.start,end:n.end,type:"nap"});c=n.end+15;}const ds=bed-90;if(ds>c+30)w.push({start:c,end:ds,type:"free"});w.push({start:ds,end:bed,type:"dinner"});return w;}
-  const windows=getFreeWindows(),pool=[...selectedActivities],days=[];let poolIdx=0;
-  for(let d=0;d<profile.trip_length_days;d++){const date=addDays(profile.start_date,d),slots=[];
-    for(const w of windows){if(w.type==="nap"){slots.push({title:"Nap / Rest",start:minsToTime(w.start),duration_mins:w.end-w.start,type:"rest"});}
-    else if(w.type==="dinner"){slots.push({title:"Dinner / Wind Down",start:minsToTime(w.start),duration_mins:w.end-w.start,type:"rest"});}
-    else{const avail=w.end-w.start-15;if(avail<45)continue;let chosen=poolIdx<pool.length?pool[poolIdx++]:null;
-      if(chosen){slots.push({title:chosen.name,start:minsToTime(w.start),duration_mins:Math.min(chosen.duration_mins,avail),location:chosen.location,type:chosen.type,activityId:chosen.id,hours:chosen.hours});}
-      else{slots.push({title:"Free Time",start:minsToTime(w.start),duration_mins:avail,type:"rest"});}}}
-    days.push({day:d+1,date,slots});}
+
+  function getWindows(){
+    const w=[];let cur=wake;
+    for(const nap of naps){
+      if(nap.start>cur+45)w.push({start:cur,end:nap.start,type:"free"});
+      w.push({start:nap.start,end:nap.end,type:"nap"});
+      cur=nap.end+15;
+    }
+    const dinnerStart=bed-90;
+    if(dinnerStart>cur+45)w.push({start:cur,end:dinnerStart,type:"free"});
+    w.push({start:dinnerStart,end:bed,type:"dinner"});
+    return w;
+  }
+
+  // Sort: longest activities first so they get the best time slots
+  const pool=[...selectedActivities].sort((a,b)=>activityDuration(b)-activityDuration(a));
+  const windows=getWindows();
+  const days=[];
+  let poolIdx=0;
+
+  for(let d=0;d<profile.trip_length_days;d++){
+    const date=addDays(profile.start_date,d);
+    const slots=[];
+    let dayConsumed=false;
+
+    for(const w of windows){
+      if(w.type==="nap"){
+        slots.push({title:"Nap / Rest",start:minsToTime(w.start),duration_mins:w.end-w.start,type:"rest"});
+        continue;
+      }
+      if(w.type==="dinner"){
+        slots.push({title:"Dinner / Wind Down",start:minsToTime(w.start),duration_mins:w.end-w.start,type:"rest"});
+        continue;
+      }
+      if(dayConsumed){
+        slots.push({title:"Free Time",start:minsToTime(w.start),duration_mins:w.end-w.start-15,type:"rest"});
+        continue;
+      }
+
+      const windowDuration=w.end-w.start-15;
+      if(windowDuration<45)continue;
+
+      // Check: is the next activity a full_day? If window is large enough, let it own the day
+      const peek=pool[poolIdx];
+      if(peek && peek.duration_category==="full_day" && windowDuration>=300){
+        slots.push({title:peek.name,start:minsToTime(w.start),duration_mins:windowDuration,location:peek.location,type:peek.type,activityId:peek.id,hours:peek.hours,duration_category:peek.duration_category});
+        poolIdx++;
+        dayConsumed=true;
+        continue;
+      }
+
+      // Fill window greedily with activities that fit
+      let t=w.start;
+      let avail=windowDuration;
+
+      while(avail>=45 && poolIdx<pool.length){
+        const act=pool[poolIdx];
+        const needed=activityDuration(act);
+
+        // Skip full_day activities if window isn't big enough
+        if(act.duration_category==="full_day" && avail<300)break;
+
+        // If activity needs more time than available AND there are other activities left, move on
+        if(needed>avail+60 && pool.length-poolIdx>1)break;
+
+        const used=Math.min(needed,avail);
+        slots.push({title:act.name,start:minsToTime(t),duration_mins:used,location:act.location,type:act.type,activityId:act.id,hours:act.hours,duration_category:act.duration_category});
+        t+=used+15; // 15 min travel/buffer between activities
+        avail-=(used+15);
+        poolIdx++;
+
+        // After a half_day or longer, stop filling this window (don't over-schedule)
+        if(["full_day","half_day"].includes(act.duration_category))break;
+      }
+
+      // Fill any remaining window with free time
+      if(avail>=45){
+        slots.push({title:"Free Time",start:minsToTime(t),duration_mins:avail,type:"rest"});
+      }
+    }
+    days.push({day:d+1,date,slots});
+  }
+
   return {profile:profile.adults+" adults, "+profile.kids.length+" kids",destination:profile.destination,days};
 }
 
@@ -210,13 +297,15 @@ function ActivityCard({activity,selected,onToggle,index}){
 function ActivitiesStep({profile,activities,setActivities,selectedIds,setSelectedIds,onNext,onBack}){
   const[loading,setLoading]=useState(false),[error,setError]=useState(null);
 
-  // Calls our backend route — API key stays on the server
+  // Calls our backend route — API key stays on the server (Phase A of AI engine)
   const generate=async()=>{setLoading(true);setError(null);try{
-    const r=await fetch("/api/generate-activities",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({destination:profile.destination,kids:profile.kids,trip_length_days:profile.trip_length_days})});
+    const r=await fetch("/api/generate-activities",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({destination:profile.destination,kids:profile.kids,trip_length_days:profile.trip_length_days,preferences:profile.preferences})});
     const data=await r.json();
     if(!r.ok)throw new Error(data.error||"API error "+r.status);
-    const parsed=data;
-    setActivities(parsed);setSelectedIds(new Set(parsed.map(a=>a.id)));
+    // New API returns { activities, source } — handle both old and new format
+    const list=Array.isArray(data)?data:(data.activities??[]);
+    if(!list.length)throw new Error("No activities returned");
+    setActivities(list);setSelectedIds(new Set(list.map(a=>a.id)));
   }catch(e){console.error(e);setError("Generation failed: "+e.message);if(!activities.length){setActivities(SAMPLE_ACTIVITIES);setSelectedIds(new Set(SAMPLE_ACTIVITIES.map(a=>a.id)));}}finally{setLoading(false);}};
 
   useEffect(()=>{if(!activities.length){setActivities(SAMPLE_ACTIVITIES);setSelectedIds(new Set(SAMPLE_ACTIVITIES.map(a=>a.id)));}},[]);
@@ -245,6 +334,7 @@ function ActivitiesStep({profile,activities,setActivities,selectedIds,setSelecte
 /* ─── STEP 3: ITINERARY + DRAG & DROP + SIDEBAR ─── */
 
 function ItineraryStep({profile,activities,selectedIds,onBack,onBackToActivities}){
+  // profile, activities, selectedIds forwarded to SaveTripButton
   const[itinerary,setItinerary]=useState(null);
   const[dragSrc,setDragSrc]=useState(null);
   const[dragOver,setDragOver]=useState(null);
@@ -377,6 +467,14 @@ function ItineraryStep({profile,activities,selectedIds,onBack,onBackToActivities
               </div>);})}
           </div>
         </div>)}
+        <div style={{display:"flex",justifyContent:"center",marginTop:16,gap:12,flexWrap:"wrap"}}>
+          <SaveTripButton
+            profile={profile}
+            activities={activities}
+            selectedIds={selectedIds}
+            itinerary={itinerary}
+          />
+        </div>
         <details style={{marginTop:8}}><summary style={{cursor:"pointer",fontSize:12,fontWeight:700,color:"var(--stone)",padding:"6px 0"}}>View JSON Export</summary>
           <pre style={{background:"var(--ink)",color:"#81D4C8",borderRadius:12,padding:16,fontSize:11,lineHeight:1.5,overflow:"auto",maxHeight:300,fontFamily:"'Fira Code',monospace",marginTop:6}}>{JSON.stringify(itinerary,null,2)}</pre>
         </details>
@@ -390,6 +488,38 @@ function ItineraryStep({profile,activities,selectedIds,onBack,onBackToActivities
 export default function FamilyTravelPlanner(){
   const[step,setStep]=useState(0),[profile,setProfile]=useState(DEFAULT_PROFILE);
   const[activities,setActivities]=useState([]),[selectedIds,setSelectedIds]=useState(new Set());
+  const[itinerary,setItinerary]=useState(null);
+
+  // Compute itinerary when moving to step 2
+  const goToItinerary=()=>{
+    const selected=activities.filter(a=>selectedIds.has(a.id));
+    setItinerary(generateItinerary(profile,selected));
+    setStep(2);
+  };
+
+  // Load a saved trip: restore profile + activities then jump to itinerary
+  const handleLoadTrip=(tripData)=>{
+    const snap=tripData.profile_snapshot;
+    if(snap) setProfile(snap);
+    const acts=tripData.activities_snapshot??[];
+    if(acts.length){
+      setActivities(acts);
+      setSelectedIds(new Set(acts.map(a=>a.id)));
+      setItinerary(generateItinerary(snap??profile,acts));
+    }
+    setStep(2);
+  };
+
+  // SaveTripButton wrapper — receives itinerary from WeeklyCalendar's current state
+  const SaveBtn=({itinerary:currentItinerary})=>(
+    <SaveTripButton
+      profile={profile}
+      activities={activities}
+      selectedIds={selectedIds}
+      itinerary={currentItinerary??itinerary}
+    />
+  );
+
   return(<div style={{minHeight:"100vh",background:"var(--sand)",fontFamily:"'Nunito',sans-serif"}}>
     <style>{CSS}</style>
     <header style={{padding:"20px 24px 0",maxWidth:1200,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -397,13 +527,31 @@ export default function FamilyTravelPlanner(){
         <span style={{fontSize:28}}>🧳</span>
         <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(18px,3vw,24px)",fontWeight:800,color:"var(--ink)"}}>Family Travel Planner</h1>
       </div>
-      <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"var(--ocean)",background:"var(--ocean-light)",padding:"3px 10px",borderRadius:5}}>MVP v3</span>
+      <UserMenu/>
     </header>
-    <StepIndicator current={step} steps={["Family","Activities","Itinerary"]}/>
+    <StepIndicator current={step} steps={["Family","Activities","Itinerary","Packing"]}/>
     <main style={{padding:"12px 20px 48px",maxWidth:1200,margin:"0 auto"}}>
-      {step===0&&<FamilyProfileStep profile={profile} setProfile={setProfile} onNext={()=>setStep(1)}/>}
-      {step===1&&<ActivitiesStep profile={profile} activities={activities} setActivities={setActivities} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onNext={()=>setStep(2)} onBack={()=>setStep(0)}/>}
-      {step===2&&<ItineraryStep profile={profile} activities={activities} selectedIds={selectedIds} onBack={()=>setStep(0)} onBackToActivities={()=>setStep(1)}/>}
+      {step===0&&<>
+        <MyTripsPanel onLoadTrip={handleLoadTrip}/>
+        <FamilyProfileStep profile={profile} setProfile={setProfile} onNext={()=>setStep(1)}/>
+      </>}
+      {step===1&&<ActivitiesStep profile={profile} activities={activities} setActivities={setActivities} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onNext={goToItinerary} onBack={()=>setStep(0)}/>}
+      {step===2&&itinerary&&<WeeklyCalendar
+        itinerary={itinerary}
+        activities={activities}
+        selectedIds={selectedIds}
+        profile={profile}
+        onBack={()=>setStep(0)}
+        onBackToActivities={()=>setStep(1)}
+        onNextStep={()=>setStep(3)}
+        SaveTripButtonComponent={SaveBtn}
+      />}
+      {step===3&&<>
+        <div style={{display:"flex",justifyContent:"center",gap:10,marginBottom:20}}>
+          <button onClick={()=>setStep(2)} style={{padding:"9px 18px",borderRadius:9,border:"2px solid var(--ocean)",background:"var(--cloud)",color:"var(--ocean)",fontSize:12,fontWeight:700,cursor:"pointer"}}>← Back to Itinerary</button>
+        </div>
+        <PackingList profile={profile} activities={activities.filter(a=>selectedIds.has(a.id))} destination={profile.destination}/>
+      </>}
     </main>
   </div>);
 }
