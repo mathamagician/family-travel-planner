@@ -187,7 +187,7 @@ function CustomBlockModal({ startTime, onSave, onClose }) {
 
 // ── Day Column ─────────────────────────────────────────────────────────────
 
-function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBlock, onAddBlock, onDropFromSidebar, onResizeStart, onBlockClick, dragState, setDragState, activeResizeHandleRef }) {
+function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBlock, onAddBlock, onDropFromSidebar, onResizeStart, onBlockClick, dragState, setDragState, activeResizeHandleRef, mobile }) {
   const colRef = useRef(null);
   const totalMins = bedMins - wakeMins;
   const height = totalMins * PX_PER_MIN;
@@ -249,7 +249,7 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
       onDragLeave={() => setDragState(s => ({ ...s, overDay: null }))}
       className="cal-empty"
       style={{
-        position:"relative", width:160, minWidth:160, height, flexShrink:0,
+        position:"relative", width: mobile ? "100%" : 160, minWidth: mobile ? undefined : 160, height, flexShrink:0,
         background: dragState.active && dragState.overDay === dayIndex ? "#FEF0EB" : "#FAFAF7",
         borderRadius:12, border:"1px solid " + (dragState.active && dragState.overDay === dayIndex ? "#E8643A" : "#E8E4DF"),
         overflow:"hidden", transition:"background .15s,border-color .15s", cursor:"crosshair",
@@ -453,6 +453,9 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
   const [dragState, setDragState] = useState({ active: false });
   const [showAddModal, setShowAddModal] = useState(null);   // { dayIndex, startTime }
   const [editingNotes, setEditingNotes] = useState(null);   // { dayIndex, blockId }
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileDay, setMobileDay] = useState(0);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   // Refs for resize operation
   const resizeRef = useRef(null); // { blockId, dayIndex, startDuration, startY }
@@ -488,6 +491,14 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
+  }, []);
+
+  // Mobile detection
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   // ── Callbacks ─────────────────────────────────────────────────────────────
@@ -562,6 +573,11 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
     }));
   };
 
+  const tapFromSidebar = (activity) => {
+    dropFromSidebar(mobileDay, minsToTime(wakeMins + 120), activity);
+    setShowMobileSidebar(false);
+  };
+
   const updateBlockNotes = (dayIndex, blockId, notes) => {
     setDays(prev => prev.map((d, i) => {
       if (i !== dayIndex) return d;
@@ -609,82 +625,201 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
         <button onClick={onBack} style={{ padding:"9px 18px",borderRadius:9,border:"2px solid #F0EDE8",background:"transparent",color:"#8A9BA5",fontSize:12,fontWeight:700,cursor:"pointer" }}>← Edit Family</button>
       </div>
 
-      <div style={{ display:"flex",gap:16,alignItems:"flex-start" }}>
-        <CalendarSidebar
-          unplaced={unplaced}
-          onDragStart={(activity) => setDragState({ active: true, source: "sidebar", activity })}
-        />
+      {isMobile ? (
+        /* ── Mobile: single-day view with tab navigation ── */
+        <div>
+          {/* Day tab strip */}
+          <div style={{ display:"flex", overflowX:"auto", gap:6, marginBottom:12, paddingBottom:4, WebkitOverflowScrolling:"touch" }}>
+            {days.map((day, i) => (
+              <button key={i} onClick={() => setMobileDay(i)}
+                style={{
+                  flexShrink:0, padding:"6px 14px", borderRadius:20, border:"none",
+                  background: i === mobileDay ? "linear-gradient(135deg,#E8643A,#F09A3A)" : "#fff",
+                  color: i === mobileDay ? "#fff" : "#8A9BA5",
+                  fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap",
+                  boxShadow: i === mobileDay ? "0 3px 10px rgba(232,100,58,.3)" : "0 1px 4px rgba(0,0,0,.08)",
+                }}>
+                Day {day.day}
+              </button>
+            ))}
+          </div>
 
-        <div style={{ flex:1,minWidth:0 }}>
-          {weeks.map((week, wi) => (
-            <div key={wi} style={{ marginBottom:28 }}>
-              {weeks.length > 1 && (
-                <div style={{ fontSize:12,fontWeight:700,color:"#8A9BA5",textTransform:"uppercase",letterSpacing:".06em",marginBottom:10 }}>
-                  Week {wi + 1}
+          {/* Current day header */}
+          {days[mobileDay] && (() => {
+            const day = days[mobileDay];
+            const isWE = (() => { const d = new Date(day.date + "T00:00:00"); return d.getDay() === 0 || d.getDay() === 6; })();
+            return (
+              <div style={{
+                padding:"10px 12px", borderRadius:"10px 10px 0 0",
+                background: isWE ? "linear-gradient(135deg,#FFF3E0,#FFF9F0)" : "linear-gradient(135deg,#E6F6F8,#F0FAFB)",
+                border:"1px solid #E8E4DF", borderBottom:"none",
+                display:"flex", justifyContent:"space-between", alignItems:"center",
+              }}>
+                <div>
+                  <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:800, color:"#1C2B33" }}>Day {day.day}</div>
+                  <div style={{ fontSize:11, fontWeight:600, color: isWE ? "#E8643A" : "#0B7A8E", marginTop:1 }}>{formatDateShort(day.date)}</div>
                 </div>
-              )}
-              <div style={{ display:"flex",gap:8,overflowX:"auto",paddingBottom:8 }}>
-                {week.map((day) => {
-                  const isWE = (() => { const d = new Date(day.date + "T00:00:00"); return d.getDay() === 0 || d.getDay() === 6; })();
-                  return (
-                    <div key={day.day} style={{ flexShrink:0 }}>
-                      <div style={{
-                        width:160, padding:"8px 10px", borderRadius:"10px 10px 0 0",
-                        background: isWE ? "linear-gradient(135deg,#FFF3E0,#FFF9F0)" : "linear-gradient(135deg,#E6F6F8,#F0FAFB)",
-                        border:"1px solid #E8E4DF", borderBottom:"none",
-                      }}>
-                        <div style={{ fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:800,color:"#1C2B33" }}>Day {day.day}</div>
-                        <div style={{ fontSize:10,fontWeight:600,color:isWE?"#E8643A":"#0B7A8E",marginTop:1 }}>{formatDateShort(day.date)}</div>
-                        <button
-                          onClick={() => setShowAddModal({ dayIndex: day._idx, startTime: minsToTime(wakeMins + 120) })}
-                          style={{ marginTop:5,padding:"2px 8px",borderRadius:6,border:"1px dashed #8A9BA5",background:"transparent",color:"#8A9BA5",fontSize:10,fontWeight:700,cursor:"pointer" }}
-                        >+ Add block</button>
-                      </div>
-
-                      <DayColumn
-                        day={day}
-                        dayIndex={day._idx}
-                        wakeMins={wakeMins}
-                        bedMins={bedMins}
-                        onMoveBlock={moveBlock}
-                        onRemoveBlock={removeBlock}
-                        onAddBlock={(di, st) => setShowAddModal({ dayIndex: di, startTime: st })}
-                        onDropFromSidebar={dropFromSidebar}
-                        onResizeStart={handleResizeStart}
-                        onBlockClick={handleBlockClick}
-                        dragState={dragState}
-                        setDragState={setDragState}
-                        activeResizeHandleRef={activeResizeHandleRef}
-                      />
-                    </div>
-                  );
-                })}
+                <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                  {mobileDay > 0 && (
+                    <button onClick={() => setMobileDay(prev => prev - 1)} style={{ padding:"5px 10px", borderRadius:6, border:"1.5px solid #E8E4DF", background:"transparent", color:"#8A9BA5", fontSize:11, fontWeight:700, cursor:"pointer" }}>← Prev</button>
+                  )}
+                  <button onClick={() => setShowAddModal({ dayIndex: mobileDay, startTime: minsToTime(wakeMins + 120) })}
+                    style={{ padding:"5px 10px", borderRadius:6, border:"1px dashed #8A9BA5", background:"transparent", color:"#8A9BA5", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                    + Add
+                  </button>
+                  {mobileDay < days.length - 1 && (
+                    <button onClick={() => setMobileDay(prev => prev + 1)} style={{ padding:"5px 10px", borderRadius:6, border:"1.5px solid #E8E4DF", background:"transparent", color:"#8A9BA5", fontSize:11, fontWeight:700, cursor:"pointer" }}>Next →</button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })()}
 
-          <div style={{ display:"flex",justifyContent:"center",marginTop:16,gap:12,flexWrap:"wrap",alignItems:"center" }}>
+          {/* Full-width day column */}
+          {days[mobileDay] && (
+            <DayColumn
+              day={days[mobileDay]}
+              dayIndex={mobileDay}
+              wakeMins={wakeMins}
+              bedMins={bedMins}
+              onMoveBlock={moveBlock}
+              onRemoveBlock={removeBlock}
+              onAddBlock={(di, st) => setShowAddModal({ dayIndex: di, startTime: st })}
+              onDropFromSidebar={dropFromSidebar}
+              onResizeStart={handleResizeStart}
+              onBlockClick={handleBlockClick}
+              dragState={dragState}
+              setDragState={setDragState}
+              activeResizeHandleRef={activeResizeHandleRef}
+              mobile={true}
+            />
+          )}
+
+          {/* Unscheduled activities toggle */}
+          <button onClick={() => setShowMobileSidebar(s => !s)}
+            style={{
+              marginTop:12, width:"100%", padding:"11px 14px", borderRadius:10,
+              border:"1.5px solid #E8E4DF", background:"#fff", color:"#1C2B33",
+              fontSize:13, fontWeight:700, cursor:"pointer",
+              display:"flex", justifyContent:"space-between", alignItems:"center",
+              boxSizing:"border-box",
+            }}>
+            <span>Unscheduled Activities ({unplaced.length})</span>
+            <span style={{ fontSize:10, color:"#8A9BA5" }}>{showMobileSidebar ? "▲ Hide" : "▼ Show"}</span>
+          </button>
+
+          {showMobileSidebar && (
+            <div style={{ background:"#fff", borderRadius:"0 0 12px 12px", border:"1.5px solid #E8E4DF", borderTop:"none", padding:"10px" }}>
+              {unplaced.length === 0 ? (
+                <p style={{ fontSize:12, color:"#8A9BA5", textAlign:"center", padding:"8px 0", fontStyle:"italic" }}>All activities placed!</p>
+              ) : unplaced.map(a => {
+                const c = TYPE_CONFIG[a.type] || TYPE_CONFIG.custom;
+                return (
+                  <div key={a.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px", borderRadius:8, background:c.bg, border:`1.5px solid ${c.color}33`, marginBottom:6 }}>
+                    <span style={{ fontSize:15, flexShrink:0 }}>{c.emoji}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:"#1C2B33", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{a.name}</div>
+                      <div style={{ fontSize:10, color:"#8A9BA5" }}>{a.duration_category ? (CAT_LABELS[a.duration_category] ?? a.duration_category) : ""}</div>
+                    </div>
+                    <button onClick={() => tapFromSidebar(a)}
+                      style={{ padding:"6px 10px", borderRadius:6, border:"none", background:"linear-gradient(135deg,#E8643A,#F09A3A)", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+                      + Day {mobileDay + 1}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div style={{ display:"flex", justifyContent:"center", marginTop:16, gap:10, flexWrap:"wrap", alignItems:"center" }}>
             {SaveTripButtonComponent && <SaveTripButtonComponent itinerary={currentItinerary} />}
             {onNextStep && (
-              <button onClick={onNextStep} style={{
-                padding:"11px 24px",borderRadius:12,border:"none",
-                background:"linear-gradient(135deg,#7C3AED,#4F46E5)",
-                color:"#fff",fontSize:13,fontWeight:800,cursor:"pointer",
-                boxShadow:"0 6px 20px rgba(124,58,237,.25)",fontFamily:"'Nunito',sans-serif",
-              }}>
+              <button onClick={onNextStep} style={{ padding:"11px 24px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#7C3AED,#4F46E5)", color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
                 🧳 Build Packing List →
               </button>
             )}
           </div>
-
-          <details style={{ marginTop:12 }}>
-            <summary style={{ cursor:"pointer",fontSize:12,fontWeight:700,color:"#8A9BA5",padding:"6px 0" }}>View JSON Export</summary>
-            <pre style={{ background:"#1C2B33",color:"#81D4C8",borderRadius:12,padding:16,fontSize:11,lineHeight:1.5,overflow:"auto",maxHeight:300,marginTop:6 }}>
-              {JSON.stringify(currentItinerary, null, 2)}
-            </pre>
-          </details>
         </div>
-      </div>
+      ) : (
+        /* ── Desktop: multi-column week view ── */
+        <div style={{ display:"flex", gap:16, alignItems:"flex-start" }}>
+          <CalendarSidebar
+            unplaced={unplaced}
+            onDragStart={(activity) => setDragState({ active: true, source: "sidebar", activity })}
+          />
+
+          <div style={{ flex:1, minWidth:0 }}>
+            {weeks.map((week, wi) => (
+              <div key={wi} style={{ marginBottom:28 }}>
+                {weeks.length > 1 && (
+                  <div style={{ fontSize:12, fontWeight:700, color:"#8A9BA5", textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>
+                    Week {wi + 1}
+                  </div>
+                )}
+                <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:8 }}>
+                  {week.map((day) => {
+                    const isWE = (() => { const d = new Date(day.date + "T00:00:00"); return d.getDay() === 0 || d.getDay() === 6; })();
+                    return (
+                      <div key={day.day} style={{ flexShrink:0 }}>
+                        <div style={{
+                          width:160, padding:"8px 10px", borderRadius:"10px 10px 0 0",
+                          background: isWE ? "linear-gradient(135deg,#FFF3E0,#FFF9F0)" : "linear-gradient(135deg,#E6F6F8,#F0FAFB)",
+                          border:"1px solid #E8E4DF", borderBottom:"none",
+                        }}>
+                          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:800, color:"#1C2B33" }}>Day {day.day}</div>
+                          <div style={{ fontSize:10, fontWeight:600, color: isWE ? "#E8643A" : "#0B7A8E", marginTop:1 }}>{formatDateShort(day.date)}</div>
+                          <button
+                            onClick={() => setShowAddModal({ dayIndex: day._idx, startTime: minsToTime(wakeMins + 120) })}
+                            style={{ marginTop:5, padding:"2px 8px", borderRadius:6, border:"1px dashed #8A9BA5", background:"transparent", color:"#8A9BA5", fontSize:10, fontWeight:700, cursor:"pointer" }}
+                          >+ Add block</button>
+                        </div>
+
+                        <DayColumn
+                          day={day}
+                          dayIndex={day._idx}
+                          wakeMins={wakeMins}
+                          bedMins={bedMins}
+                          onMoveBlock={moveBlock}
+                          onRemoveBlock={removeBlock}
+                          onAddBlock={(di, st) => setShowAddModal({ dayIndex: di, startTime: st })}
+                          onDropFromSidebar={dropFromSidebar}
+                          onResizeStart={handleResizeStart}
+                          onBlockClick={handleBlockClick}
+                          dragState={dragState}
+                          setDragState={setDragState}
+                          activeResizeHandleRef={activeResizeHandleRef}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            <div style={{ display:"flex", justifyContent:"center", marginTop:16, gap:12, flexWrap:"wrap", alignItems:"center" }}>
+              {SaveTripButtonComponent && <SaveTripButtonComponent itinerary={currentItinerary} />}
+              {onNextStep && (
+                <button onClick={onNextStep} style={{
+                  padding:"11px 24px", borderRadius:12, border:"none",
+                  background:"linear-gradient(135deg,#7C3AED,#4F46E5)",
+                  color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer",
+                  boxShadow:"0 6px 20px rgba(124,58,237,.25)", fontFamily:"'Nunito',sans-serif",
+                }}>
+                  🧳 Build Packing List →
+                </button>
+              )}
+            </div>
+
+            <details style={{ marginTop:12 }}>
+              <summary style={{ cursor:"pointer", fontSize:12, fontWeight:700, color:"#8A9BA5", padding:"6px 0" }}>View JSON Export</summary>
+              <pre style={{ background:"#1C2B33", color:"#81D4C8", borderRadius:12, padding:16, fontSize:11, lineHeight:1.5, overflow:"auto", maxHeight:300, marginTop:6 }}>
+                {JSON.stringify(currentItinerary, null, 2)}
+              </pre>
+            </details>
+          </div>
+        </div>
+      )}
 
       {/* Add block modal */}
       {showAddModal && (
