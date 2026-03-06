@@ -514,12 +514,36 @@ function ItineraryStep({profile,activities,selectedIds,onBack,onBackToActivities
   </div>);
 }
 
+/* ─── SHARE BAR ─── */
+
+function ShareBar({shareToken,onCopy,copied}){
+  if(!shareToken)return null;
+  const shareUrl=`${window.location.origin}/share/${shareToken}`;
+  return(
+    <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"center",background:"#F0FAF4",borderRadius:12,padding:"10px 16px",border:"1.5px solid #2D8A4E"}}>
+        <span style={{fontSize:13,fontWeight:700,color:"#2D8A4E"}}>🔗 Trip saved!</span>
+        <input readOnly value={shareUrl} onClick={e=>e.target.select()}
+          style={{padding:"5px 10px",borderRadius:7,border:"1px solid #D1FAE5",fontSize:11,fontWeight:600,background:"#fff",width:230,overflow:"hidden",textOverflow:"ellipsis"}}/>
+        <button onClick={onCopy}
+          style={{padding:"6px 16px",borderRadius:7,border:"none",background:copied?"#2D8A4E":"linear-gradient(135deg,#2D8A4E,#0B7A8E)",color:"#fff",fontSize:11,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap",transition:"background .2s"}}>
+          {copied?"✓ Copied!":"Share Trip →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── MAIN ─── */
 
 export default function FamilyTravelPlanner(){
   const[step,setStep]=useState(0),[profile,setProfile]=useState(DEFAULT_PROFILE);
   const[activities,setActivities]=useState([]),[selectedIds,setSelectedIds]=useState(new Set());
   const[itinerary,setItinerary]=useState(null);
+  const[shareToken,setShareToken]=useState(null);
+  const[shareCopied,setShareCopied]=useState(false);
+  const[packingItems,setPackingItems]=useState([]);
+  const[packingGenerated,setPackingGenerated]=useState(false);
 
   // Compute itinerary when moving to step 2
   const goToItinerary=()=>{
@@ -541,6 +565,13 @@ export default function FamilyTravelPlanner(){
     setStep(2);
   };
 
+  const handleShareCopy=()=>{
+    if(!shareToken)return;
+    navigator.clipboard.writeText(`${window.location.origin}/share/${shareToken}`);
+    setShareCopied(true);
+    setTimeout(()=>setShareCopied(false),2500);
+  };
+
   // SaveTripButton wrapper — receives itinerary from WeeklyCalendar's current state
   const SaveBtn=({itinerary:currentItinerary})=>(
     <SaveTripButton
@@ -548,6 +579,7 @@ export default function FamilyTravelPlanner(){
       activities={activities}
       selectedIds={selectedIds}
       itinerary={currentItinerary??itinerary}
+      onSaved={(data)=>{if(data?.share_token)setShareToken(data.share_token);}}
     />
   );
 
@@ -567,21 +599,34 @@ export default function FamilyTravelPlanner(){
         <FamilyProfileStep profile={profile} setProfile={setProfile} onNext={()=>setStep(1)}/>
       </>}
       {step===1&&<ActivitiesStep profile={profile} activities={activities} setActivities={setActivities} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onNext={goToItinerary} onBack={()=>setStep(0)}/>}
-      {step===2&&itinerary&&<WeeklyCalendar
-        itinerary={itinerary}
-        activities={activities}
-        selectedIds={selectedIds}
-        profile={profile}
-        onBack={()=>setStep(0)}
-        onBackToActivities={()=>setStep(1)}
-        onNextStep={()=>setStep(3)}
-        SaveTripButtonComponent={SaveBtn}
-      />}
+      {step===2&&itinerary&&<>
+        <ShareBar shareToken={shareToken} onCopy={handleShareCopy} copied={shareCopied}/>
+        <WeeklyCalendar
+          itinerary={itinerary}
+          activities={activities}
+          selectedIds={selectedIds}
+          profile={profile}
+          onBack={()=>setStep(0)}
+          onBackToActivities={()=>setStep(1)}
+          onNextStep={()=>setStep(3)}
+          SaveTripButtonComponent={SaveBtn}
+        />
+        <ShareBar shareToken={shareToken} onCopy={handleShareCopy} copied={shareCopied}/>
+      </>}
       {step===3&&<>
+        <ShareBar shareToken={shareToken} onCopy={handleShareCopy} copied={shareCopied}/>
         <div style={{display:"flex",justifyContent:"center",gap:10,marginBottom:20}}>
           <button onClick={()=>setStep(2)} style={{padding:"9px 18px",borderRadius:9,border:"2px solid var(--ocean)",background:"var(--cloud)",color:"var(--ocean)",fontSize:12,fontWeight:700,cursor:"pointer"}}>← Back to Itinerary</button>
         </div>
-        <PackingList profile={profile} activities={activities.filter(a=>selectedIds.has(a.id))} destination={profile.destination}/>
+        <PackingList
+          profile={profile}
+          activities={activities.filter(a=>selectedIds.has(a.id))}
+          destination={profile.destination}
+          savedItems={packingItems}
+          savedGenerated={packingGenerated}
+          onItemsChange={setPackingItems}
+          onGeneratedChange={setPackingGenerated}
+        />
       </>}
     </main>
   </div>);

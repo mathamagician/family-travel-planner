@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 const CATEGORY_CONFIG = {
   documents:     { emoji: "📄", label: "Documents & IDs" },
@@ -171,13 +171,17 @@ function CategorySection({ category, items, onToggle, collapsed, onToggleCollaps
   );
 }
 
-export default function PackingList({ profile, activities, destination }) {
-  const [items, setItems] = useState([]);
+export default function PackingList({ profile, activities, destination, savedItems, savedGenerated, onItemsChange, onGeneratedChange }) {
+  const [items, setItems] = useState(savedItems ?? []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [generated, setGenerated] = useState(false);
+  const [generated, setGenerated] = useState(savedGenerated ?? false);
   const [collapsed, setCollapsed] = useState({});
   const [filter, setFilter] = useState("all"); // 'all' | 'unpacked' | 'essential'
+
+  // Sync state up to parent so it survives step navigation
+  useEffect(() => { onItemsChange?.(items); }, [items]);
+  useEffect(() => { onGeneratedChange?.(generated); }, [generated]);
 
   const generateList = async () => {
     setLoading(true);

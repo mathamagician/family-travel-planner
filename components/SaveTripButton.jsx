@@ -88,7 +88,7 @@ export default function SaveTripButton({ profile, activities, selectedIds, itine
                 transition: "background .2s", flexShrink: 0,
               }}
             >
-              {copied ? "✓ Copied!" : "Copy Link"}
+              {copied ? "✓ Copied!" : "Share Trip →"}
             </button>
           </div>
         )}
