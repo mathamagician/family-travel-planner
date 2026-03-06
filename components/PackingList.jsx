@@ -17,7 +17,56 @@ const CATEGORY_CONFIG = {
 
 const CATEGORY_ORDER = ["documents", "health_safety", "baby_gear", "clothing", "toiletries", "snacks", "activities", "tech", "outdoor", "misc"];
 
-const AMAZON_TAG = process.env.NEXT_PUBLIC_AMAZON_AFFILIATE_TAG ?? "familytravel0a-20";
+const AMAZON_TAG    = process.env.NEXT_PUBLIC_AMAZON_AFFILIATE_TAG ?? "familytravel0a-20";
+const BABYQUIP_URL  = process.env.NEXT_PUBLIC_BABYQUIP_URL ?? "https://www.babyquip.com?a=b33db96";
+
+// Items where renting makes more sense than buying/packing
+const RENTABLE = /crib|stroller|car\s*seat|high\s*chair|highchair|booster\s*seat|play\s*yard|playpen|pack.n.play|pack\s*n\s*play|bassinet|bouncer|baby\s*swing|portable\s*(crib|seat|high)/i;
+
+function BabyQuipRentButton({ name }) {
+  if (!RENTABLE.test(name)) return null;
+  return (
+    <a href={BABYQUIP_URL} target="_blank" rel="noopener noreferrer"
+      style={{
+        display:"inline-flex",alignItems:"center",gap:3,padding:"2px 8px",borderRadius:6,
+        background:"#FDF2F8",border:"1px solid #EC4899",color:"#BE185D",
+        fontSize:9,fontWeight:800,textDecoration:"none",marginLeft:4,
+      }}
+      onClick={e => e.stopPropagation()}
+    >
+      🏠 Rent it
+    </a>
+  );
+}
+
+function BabyQuipBanner() {
+  return (
+    <a href={BABYQUIP_URL} target="_blank" rel="noopener noreferrer"
+      style={{
+        display:"flex",alignItems:"center",gap:12,
+        background:"linear-gradient(135deg,#FDF2F8,#FFF0FB)",
+        border:"1.5px solid #EC4899",borderRadius:14,padding:"12px 16px",
+        marginBottom:14,textDecoration:"none",
+      }}
+    >
+      <span style={{ fontSize:28,flexShrink:0 }}>🚼</span>
+      <div style={{ flex:1,minWidth:0 }}>
+        <div style={{ fontSize:13,fontWeight:800,color:"#BE185D",marginBottom:2 }}>
+          Skip packing the bulky stuff!
+        </div>
+        <div style={{ fontSize:11,fontWeight:600,color:"#9D174D",lineHeight:1.4 }}>
+          Rent cribs, strollers, car seats & more — delivered to your destination via BabyQuip.
+        </div>
+      </div>
+      <div style={{
+        flexShrink:0,padding:"7px 14px",borderRadius:9,
+        background:"#EC4899",color:"#fff",fontSize:11,fontWeight:800,whiteSpace:"nowrap",
+      }}>
+        Rent Gear →
+      </div>
+    </a>
+  );
+}
 
 function AffiliateButton({ searchQuery }) {
   if (!searchQuery) return null;
@@ -76,6 +125,7 @@ function PackingItem({ item, onToggle }) {
             <span style={{ fontSize:10,color:"#8A9BA5",fontWeight:600 }}>{item.quantity_note}</span>
           )}
           {!item.packed && <AffiliateButton searchQuery={item.affiliate_search} />}
+          {!item.packed && <BabyQuipRentButton name={item.name} />}
         </div>
         {item.notes && !item.packed && (
           <p style={{ fontSize:11,color:"#8A9BA5",margin:"2px 0 0",lineHeight:1.4 }}>{item.notes}</p>
@@ -232,6 +282,9 @@ export default function PackingList({ profile, activities, destination }) {
             }}>↻ Regenerate</button>
           </div>
 
+          {/* BabyQuip banner — shown when baby gear items exist */}
+          {byCategory['baby_gear']?.length > 0 && <BabyQuipBanner />}
+
           {/* Categories */}
           <div style={{ background:"#fff",borderRadius:16,padding:"12px 14px",border:"1px solid #F0EDE8" }}>
             {CATEGORY_ORDER.filter(cat => byCategory[cat]?.length).map(cat => (
@@ -257,7 +310,7 @@ export default function PackingList({ profile, activities, destination }) {
           </div>
 
           <p style={{ fontSize:10,color:"#8A9BA5",textAlign:"center",marginTop:12,lineHeight:1.5 }}>
-            🛒 Buy links use our Amazon affiliate code — supports this site at no extra cost to you.
+            🛒 Buy &amp; Rent links are affiliate links (Amazon, BabyQuip) — supports this site at no extra cost to you.
           </p>
         </>
       )}
