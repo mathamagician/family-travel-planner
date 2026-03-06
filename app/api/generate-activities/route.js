@@ -4,7 +4,8 @@ import { getAdminClient } from "../../../lib/supabase/admin";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const CACHE_DAYS = 30;
+const CACHE_DAYS  = 30;
+const CACHE_MIN   = 15; // min rows before we trust cache (pre-seeded destinations have 50)
 
 // ── Genius system prompt ────────────────────────────────────────────────
 // Teaches Claude to understand duration categories so the scheduler can
@@ -54,8 +55,13 @@ QUALITY RULES:
 - Practical notes focused on what parents with strollers and napping kids actually need to know`;
 
 function parseDestination(destination) {
-  const parts = destination.split(",").map((s) => s.trim());
-  return { city: parts[0] ?? destination, state: parts[1] ?? null };
+  // Strip common suffixes users may include
+  const cleaned = destination
+    .replace(/\s+national\s+park\b/gi, "")  // "Grand Canyon National Park, AZ" → "Grand Canyon, AZ"
+    .replace(/\bD\.C\.\b/gi, "DC")           // "Washington, D.C." → "Washington, DC"
+    .trim();
+  const parts = cleaned.split(",").map((s) => s.trim());
+  return { city: parts[0] ?? cleaned, state: parts[1] ?? null };
 }
 
 async function getCachedActivities(city, state) {
@@ -73,7 +79,7 @@ async function getCachedActivities(city, state) {
     if (state) query = query.ilike("destination_state", state);
 
     const { data } = await query.order("google_rating", { ascending: false, nullsFirst: false });
-    return data?.length >= 8 ? data : null;
+    return data?.length >= CACHE_MIN ? data : null;
   } catch {
     return null; // DB not yet configured — fall through to AI
   }

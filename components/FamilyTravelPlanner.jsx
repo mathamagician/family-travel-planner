@@ -325,11 +325,14 @@ function ActivityCard({activity,selected,onToggle,index,destination}){
   </div>);
 }
 
+const INITIAL_SHOW = 30;
+
 function ActivitiesStep({profile,activities,setActivities,selectedIds,setSelectedIds,onNext,onBack}){
   const[loading,setLoading]=useState(false),[error,setError]=useState(null);
+  const[showAll,setShowAll]=useState(false);
 
   // Calls our backend route — API key stays on the server (Phase A of AI engine)
-  const generate=async()=>{setLoading(true);setError(null);try{
+  const generate=async()=>{setLoading(true);setError(null);setShowAll(false);try{
     const r=await fetch("/api/generate-activities",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({destination:profile.destination,kids:profile.kids,trip_length_days:profile.trip_length_days,preferences:profile.preferences})});
     const data=await r.json();
     if(!r.ok)throw new Error(data.error||"API error "+r.status);
@@ -341,6 +344,17 @@ function ActivitiesStep({profile,activities,setActivities,selectedIds,setSelecte
 
   useEffect(()=>{if(!activities.length){setActivities(SAMPLE_ACTIVITIES);setSelectedIds(new Set(SAMPLE_ACTIVITIES.map(a=>a.id)));}},[]);
   const toggle=id=>{const n=new Set(selectedIds);n.has(id)?n.delete(id):n.add(id);setSelectedIds(n);};
+
+  const visible=showAll?activities:activities.slice(0,INITIAL_SHOW);
+  const hidden=activities.length-INITIAL_SHOW;
+
+  const showMore=()=>{
+    setShowAll(true);
+    // Auto-select newly revealed activities
+    const extra=activities.slice(INITIAL_SHOW).map(a=>a.id);
+    setSelectedIds(prev=>{const n=new Set(prev);extra.forEach(id=>n.add(id));return n;});
+  };
+
   return(<div className="step-enter">
     <div style={{textAlign:"center",marginBottom:20}}>
       <span style={{fontSize:44,display:"block",marginBottom:6}}>🎯</span>
@@ -353,8 +367,15 @@ function ActivitiesStep({profile,activities,setActivities,selectedIds,setSelecte
     </div>
     {error&&<div style={{background:"var(--sunset-light)",borderRadius:10,padding:"10px 14px",marginBottom:14,maxWidth:660,margin:"0 auto 14px"}}><p style={{color:"var(--sunset)",fontSize:12,margin:0}}>{error}</p></div>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14,maxWidth:1060,margin:"0 auto"}}>
-      {activities.map((a,i)=><ActivityCard key={a.id} activity={a} selected={selectedIds.has(a.id)} onToggle={()=>toggle(a.id)} index={i} destination={profile.destination}/>)}
+      {visible.map((a,i)=><ActivityCard key={a.id} activity={a} selected={selectedIds.has(a.id)} onToggle={()=>toggle(a.id)} index={i} destination={profile.destination}/>)}
     </div>
+    {!showAll&&hidden>0&&(
+      <div style={{textAlign:"center",marginTop:16}}>
+        <button onClick={showMore} style={{padding:"9px 24px",borderRadius:10,border:"2px solid var(--mist)",background:"transparent",color:"var(--stone)",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+          Show {hidden} more activities ↓
+        </button>
+      </div>
+    )}
     <div style={{display:"flex",justifyContent:"center",gap:10,marginTop:24}}>
       <button onClick={onBack} style={{padding:"11px 28px",borderRadius:10,border:"2px solid var(--mist)",background:"transparent",color:"var(--stone)",fontSize:13,fontWeight:700,cursor:"pointer"}}>← Family</button>
       <button onClick={onNext} disabled={!selectedIds.size} style={{padding:"11px 36px",borderRadius:10,border:"none",background:selectedIds.size?"linear-gradient(135deg,var(--sunset),#F09A3A)":"var(--mist)",color:selectedIds.size?"#fff":"var(--stone)",fontSize:13,fontWeight:800,cursor:selectedIds.size?"pointer":"not-allowed",boxShadow:selectedIds.size?"0 6px 20px rgba(232,100,58,.3)":"none"}}>Build Itinerary →</button>
