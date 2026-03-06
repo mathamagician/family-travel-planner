@@ -8,6 +8,8 @@ export default function SaveTripButton({ profile, activities, selectedIds, itine
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [savedId, setSavedId] = useState(null);
+  const [shareToken, setShareToken] = useState(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState(null);
   const [showNameInput, setShowNameInput] = useState(false);
   const [tripName, setTripName] = useState(
@@ -36,6 +38,7 @@ export default function SaveTripButton({ profile, activities, selectedIds, itine
       const data = await res.json();
       setSaved(true);
       setSavedId(data.id);
+      setShareToken(data.share_token ?? null);
       setShowNameInput(false);
       onSaved?.(data);
     } catch (e) {
@@ -45,30 +48,50 @@ export default function SaveTripButton({ profile, activities, selectedIds, itine
     }
   };
 
-  const shareUrl = savedId ? `${window.location.origin}/?trip=${savedId}` : null;
+  const shareUrl = shareToken ? `${window.location.origin}/share/${shareToken}` : null;
+
+  const handleCopy = () => {
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
 
   if (saved) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, fontFamily: "'Nunito', sans-serif" }}>
         <div style={{
           background: "#F0FAF4", borderRadius: 12, padding: "10px 18px",
           border: "1.5px solid #2D8A4E", display: "flex", alignItems: "center", gap: 8,
-          fontFamily: "'Nunito', sans-serif",
         }}>
           <span style={{ fontSize: 16 }}>✅</span>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#2D8A4E" }}>Trip saved!</span>
-          {shareUrl && (
-            <button
-              onClick={() => { navigator.clipboard.writeText(shareUrl); }}
+        </div>
+        {shareUrl && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input
+              readOnly
+              value={shareUrl}
               style={{
-                marginLeft: 8, padding: "4px 12px", borderRadius: 8, border: "1.5px solid #2D8A4E",
-                background: "#fff", color: "#2D8A4E", fontSize: 11, fontWeight: 800, cursor: "pointer",
+                padding: "7px 12px", borderRadius: 8, border: "1.5px solid #D1FAE5",
+                fontSize: 11, fontWeight: 600, color: "#1C2B33", background: "#F0FAF4",
+                width: 260, overflow: "hidden", textOverflow: "ellipsis",
+              }}
+              onClick={e => e.target.select()}
+            />
+            <button
+              onClick={handleCopy}
+              style={{
+                padding: "7px 14px", borderRadius: 8, border: "none",
+                background: copied ? "#2D8A4E" : "linear-gradient(135deg,#2D8A4E,#0B7A8E)",
+                color: "#fff", fontSize: 11, fontWeight: 800, cursor: "pointer",
+                transition: "background .2s", flexShrink: 0,
               }}
             >
-              Copy Share Link
+              {copied ? "✓ Copied!" : "Copy Link"}
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     );
   }
