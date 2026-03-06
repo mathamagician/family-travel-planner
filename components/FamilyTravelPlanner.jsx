@@ -8,6 +8,30 @@ import SaveTripButton from "./SaveTripButton";
 import WeeklyCalendar from "./WeeklyCalendar";
 import PackingList from "./PackingList";
 
+const VIATOR_PID = process.env.NEXT_PUBLIC_VIATOR_PID;
+const BOOKABLE_TYPES = new Set(["attraction", "entertainment", "museum", "hike", "outdoors", "culture"]);
+
+function ViatorButton({ activity, destination }) {
+  const isBookable = BOOKABLE_TYPES.has(activity.type) || activity.booking_required || (activity.admission_adult_usd > 0);
+  if (!isBookable) return null;
+  const q = encodeURIComponent(`${activity.name} ${destination ?? ""}`.trim());
+  const url = VIATOR_PID
+    ? `https://www.viator.com/searchResults/all?text=${q}&pid=${VIATOR_PID}&mcid=42383&medium=link&campaign=familytravel`
+    : `https://www.viator.com/searchResults/all?text=${q}`;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer"
+      onClick={e => e.stopPropagation()}
+      style={{
+        display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:7,
+        background:"#EEF6FF",border:"1px solid #60A5FA",color:"#1D4ED8",
+        fontSize:10,fontWeight:800,textDecoration:"none",
+      }}
+    >
+      🎟 Book tickets
+    </a>
+  );
+}
+
 /* ─────────────────────────────────────────────
    CONFIG & CONSTANTS
    ───────────────────────────────────────────── */
@@ -275,8 +299,11 @@ function FamilyProfileStep({profile,setProfile,onNext}){
 
 /* ─── STEP 2: ACTIVITIES ─── */
 
-function ActivityCard({activity,selected,onToggle,index}){
+function ActivityCard({activity,selected,onToggle,index,destination}){
   const c=TYPE_CONFIG[activity.type]||TYPE_CONFIG.attraction;
+  const admissionText = activity.admission_adult_usd > 0
+    ? `$${activity.admission_adult_usd}/adult${activity.admission_child_usd > 0 ? ` · $${activity.admission_child_usd}/child` : ""}`
+    : (activity.admission_adult_usd === 0 ? "Free" : null);
   return(<div onClick={onToggle} style={{opacity:0,animation:"slideUp .4s ease-out "+index*.04+"s forwards",background:"#fff",borderRadius:14,border:"2px solid "+(selected?c.color:"#E8E4DF"),cursor:"pointer",transition:"all .25s",boxShadow:selected?"0 3px 12px "+c.color+"22":"none",position:"relative"}}>
     <div style={{position:"absolute",top:12,right:12,width:22,height:22,borderRadius:6,border:"2px solid "+(selected?c.color:"#D1CCC6"),background:selected?c.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
       {selected&&<span style={{color:"#fff",fontSize:12,fontWeight:800}}>✓</span>}</div>
@@ -285,11 +312,15 @@ function ActivityCard({activity,selected,onToggle,index}){
         <span style={{fontSize:22}}>{c.emoji}</span>
         <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:"var(--ink)",lineHeight:1.3}}>{activity.name}</h3>
       </div>
-      <span style={{display:"inline-block",fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:c.color,background:c.bg,padding:"2px 7px",borderRadius:5,marginBottom:6}}>{activity.type}</span>
+      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,flexWrap:"wrap"}}>
+        <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:c.color,background:c.bg,padding:"2px 7px",borderRadius:5}}>{activity.type}</span>
+        {admissionText && <span style={{fontSize:10,fontWeight:700,color:admissionText==="Free"?"#2D8A4E":"#1C2B33",background:admissionText==="Free"?"#F0FAF4":"#F8F6F2",padding:"2px 7px",borderRadius:5}}>{admissionText}</span>}
+      </div>
       <p style={{fontSize:12,color:"var(--stone)",lineHeight:1.5,marginBottom:8}}>{activity.notes}</p>
-      <div style={{display:"flex",flexWrap:"wrap",gap:8,fontSize:11,color:"var(--stone)"}}>
+      <div style={{display:"flex",flexWrap:"wrap",gap:8,fontSize:11,color:"var(--stone)",marginBottom:8}}>
         <span>🕐 {activity.hours}</span><span>⏱️ {formatDuration(activity.duration_mins)}</span><span>👶 Ages {activity.age_range}</span>
       </div>
+      <ViatorButton activity={activity} destination={destination} />
     </div>
   </div>);
 }
@@ -322,7 +353,7 @@ function ActivitiesStep({profile,activities,setActivities,selectedIds,setSelecte
     </div>
     {error&&<div style={{background:"var(--sunset-light)",borderRadius:10,padding:"10px 14px",marginBottom:14,maxWidth:660,margin:"0 auto 14px"}}><p style={{color:"var(--sunset)",fontSize:12,margin:0}}>{error}</p></div>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14,maxWidth:1060,margin:"0 auto"}}>
-      {activities.map((a,i)=><ActivityCard key={a.id} activity={a} selected={selectedIds.has(a.id)} onToggle={()=>toggle(a.id)} index={i}/>)}
+      {activities.map((a,i)=><ActivityCard key={a.id} activity={a} selected={selectedIds.has(a.id)} onToggle={()=>toggle(a.id)} index={i} destination={profile.destination}/>)}
     </div>
     <div style={{display:"flex",justifyContent:"center",gap:10,marginTop:24}}>
       <button onClick={onBack} style={{padding:"11px 28px",borderRadius:10,border:"2px solid var(--mist)",background:"transparent",color:"var(--stone)",fontSize:13,fontWeight:700,cursor:"pointer"}}>← Family</button>
