@@ -283,6 +283,8 @@ function FamilyProfileStep({profile,setProfile,onNext}){
   const addNap=()=>setProfile({...profile,naps:[...profile.naps,{start:"14:00",duration:60}]});
   const removeNap=i=>setProfile({...profile,naps:profile.naps.filter((_,j)=>j!==i)});
   const updateNap=(i,f,v)=>{const n=[...profile.naps];n[i]={...n[i],[f]:f==="duration"?parseInt(v):v};setProfile({...profile,naps:n});};
+  const [daysInput, setDaysInput] = useState(String(profile.trip_length_days));
+  const [adultsInput, setAdultsInput] = useState(String(profile.adults));
   const S={width:"100%",padding:"9px 12px",borderRadius:9,border:"2px solid var(--mist)",fontSize:13,fontWeight:600,background:"#fff",color:"var(--ink)",transition:"all .2s"};
   const L={display:"block",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"var(--stone)",marginBottom:5};
   const ok=profile.destination.trim()&&profile.kids.length>0&&profile.trip_length_days>0;
@@ -298,18 +300,26 @@ function FamilyProfileStep({profile,setProfile,onNext}){
       </div>
     </div>
     <div style={{background:"var(--cloud)",borderRadius:16,padding:18,border:"1px solid var(--mist)",boxShadow:"0 2px 10px rgba(0,0,0,.04)"}}>
-      {/* Destination + Date + Days + Adults — one row */}
-      <div style={{display:"grid",gridTemplateColumns:"1.3fr 1fr .8fr .6fr",gap:10,marginBottom:12}}>
-        {[{label:"Destination",type:"text",val:profile.destination,onChange:e=>setProfile({...profile,destination:e.target.value}),ph:"e.g. San Diego"},
-          {label:"Date",type:"date",val:profile.start_date,onChange:e=>setProfile({...profile,start_date:e.target.value})},
-          {label:"Days",type:"number",val:profile.trip_length_days,onChange:e=>setProfile({...profile,trip_length_days:parseInt(e.target.value)||1}),min:1,max:21},
-          {label:"Adults",type:"number",val:profile.adults,onChange:e=>setProfile({...profile,adults:parseInt(e.target.value)||1}),min:1,max:6},
-        ].map((f,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
-            <label style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"var(--stone)",whiteSpace:"nowrap"}}>{f.label}</label>
-            <input style={{...S,padding:"7px 10px",fontSize:12}} type={f.type} value={f.val} onChange={f.onChange} placeholder={f.ph} min={f.min} max={f.max}/>
+      {/* Destination + Date + Days + Adults — responsive (desktop: row, mobile: stacked) */}
+      <div className="trip-fields-grid">
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <label style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"var(--stone)",whiteSpace:"nowrap"}}>Destination</label>
+          <input style={{...S,padding:"7px 10px",fontSize:12}} type="text" value={profile.destination} onChange={e=>setProfile({...profile,destination:e.target.value})} placeholder="e.g. San Diego"/>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <label style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"var(--stone)",whiteSpace:"nowrap"}}>Date</label>
+          <input style={{...S,padding:"7px 10px",fontSize:12}} type="date" value={profile.start_date} onChange={e=>setProfile({...profile,start_date:e.target.value})}/>
+        </div>
+        <div className="trip-days-adults">
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <label style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"var(--stone)",whiteSpace:"nowrap"}}>Days</label>
+            <input style={{...S,padding:"7px 10px",fontSize:12}} type="number" value={daysInput} onChange={e=>setDaysInput(e.target.value)} onBlur={()=>{const v=Math.max(1,parseInt(daysInput)||1);setDaysInput(String(v));setProfile(p=>({...p,trip_length_days:v}));}} min={1} max={21}/>
           </div>
-        ))}
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <label style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"var(--stone)",whiteSpace:"nowrap"}}>Adults</label>
+            <input style={{...S,padding:"7px 10px",fontSize:12}} type="number" value={adultsInput} onChange={e=>setAdultsInput(e.target.value)} onBlur={()=>{const v=Math.max(1,parseInt(adultsInput)||1);setAdultsInput(String(v));setProfile(p=>({...p,adults:v}));}} min={1} max={6}/>
+          </div>
+        </div>
       </div>
       {/* Children */}
       <div style={{marginBottom:12}}>
