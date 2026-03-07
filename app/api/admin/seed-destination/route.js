@@ -15,14 +15,14 @@ function isAuthorized(request) {
 
 // ── Prompts (same as seed script) ────────────────────────────────────────────
 const CITY_SYSTEM_PROMPT = `You are an expert family travel planner specializing in trips with young children (ages 0-12).
-Generate exactly 50 real, family-friendly activities for the destination provided.
+Generate exactly 40 real, family-friendly activities for the destination provided.
 CRITICAL: Respond with ONLY a valid JSON array. No markdown, no explanation. Start with [ and end with ].
 Each object: {"id":"snake_case","name":"Place name","type":"attraction"|"park"|"outdoors"|"culture"|"museum"|"food"|"entertainment"|"hike","duration_category":"full_day"|"half_day"|"2-4h"|"1-2h"|"under_1h","duration_mins_typical":<n>,"duration_mins_min":<n>,"duration_mins_max":<n>,"hours":"<human readable>","notes":"<2-3 parent tips>","location":"<full address>","age_min":<n>,"age_max":<n|null>,"stroller_accessible":true|false,"food_onsite":true|false,"food_nearby":true|false,"admission_adult_usd":<n|null>,"admission_child_usd":<n|null>,"booking_required":true|false,"affiliate":"<url>"}
 DURATION: full_day=6+h, half_day=3-5h, 2-4h=2-4h, 1-2h=1-2h, under_1h=<1h
 Include: 8+ toddler-friendly, 5+ free options, indoor+outdoor mix, parks, food markets, theme parks if applicable.`;
 
 const PARK_SYSTEM_PROMPT = `You are an expert national park guide specializing in family trips with young children (ages 0-12).
-Generate exactly 50 family-friendly trails, activities, and experiences for the national park provided.
+Generate exactly 40 family-friendly trails, activities, and experiences for the national park provided.
 CRITICAL: Respond with ONLY a valid JSON array. No markdown, no explanation. Start with [ and end with ].
 Each object: {"id":"snake_case","name":"Trail/location name","type":"hike"|"outdoors"|"culture"|"entertainment"|"park","duration_category":"full_day"|"half_day"|"2-4h"|"1-2h"|"under_1h","duration_mins_typical":<n>,"duration_mins_min":<n>,"duration_mins_max":<n>,"hours":"<hours>","notes":"<distance, elevation, stroller info, tips>","location":"<trailhead or address>","age_min":<n>,"age_max":null,"stroller_accessible":true|false,"food_onsite":true|false,"food_nearby":true|false,"admission_adult_usd":<n|null>,"admission_child_usd":<n|null>,"booking_required":true|false,"affiliate":"<nps.gov url>"}
 Include: 10+ stroller-accessible, visitor centers, scenic drives, Junior Ranger program, ranger programs, wildlife spots.`;
@@ -67,7 +67,7 @@ export async function POST(request) {
       system: ispark ? PARK_SYSTEM_PROMPT : CITY_SYSTEM_PROMPT,
       messages: [{
         role: "user",
-        content: `Generate 50 family-friendly activities for: ${location}. Return ONLY a JSON array.`,
+        content: `Generate 40 family-friendly activities for: ${location}. Return ONLY a JSON array.`,
       }],
     });
 

@@ -11,8 +11,8 @@
  * Once the DB is populated, generate-activities/route.js returns results
  * instantly from cache instead of calling Claude on every user request.
  *
- * Model: claude-sonnet-4-6 (supports 16K output — needed for 50 activities)
- * Cost:  ~$0.20–0.30 per destination  ·  ~$22–30 for full seed run
+ * Model: claude-sonnet-4-6 (supports 16K output)
+ * Cost:  ~$0.15–0.20 per destination  ·  ~$17–22 for full seed run
  * Time:  ~10–15 min for all 110 destinations (2s delay between calls)
  */
 
@@ -179,7 +179,7 @@ const DESTINATIONS = [
 
 const CITY_SYSTEM_PROMPT = `You are an expert family travel planner specializing in trips with young children (ages 0-12).
 
-Generate exactly 50 real, family-friendly activities for the destination provided.
+Generate exactly 40 real, family-friendly activities for the destination provided.
 
 CRITICAL: Respond with ONLY a valid JSON array. No markdown, no explanation, no code fences. Start with [ and end with ].
 
@@ -213,7 +213,7 @@ DURATION CATEGORY RULES (critical for smart scheduling):
 - "1-2h": 1-2 hours — small parks, playgrounds, short hikes, quick cultural stops
 - "under_1h": under 1 hour — viewpoints, quick food stops, brief exhibits
 
-QUALITY REQUIREMENTS for all 50 activities:
+QUALITY REQUIREMENTS for all 40 activities:
 - Real places only (must actually exist at this location)
 - Mix: indoor + outdoor, free + paid, various age groups, rainy-day backups
 - At least 8 activities suitable for infants/toddlers (stroller_accessible: true, age_min: 0)
@@ -225,7 +225,7 @@ QUALITY REQUIREMENTS for all 50 activities:
 
 const PARK_SYSTEM_PROMPT = `You are an expert national park guide specializing in family trips with young children (ages 0-12).
 
-Generate exactly 50 family-friendly trails, activities, and experiences for the national park provided.
+Generate exactly 40 family-friendly trails, activities, and experiences for the national park provided.
 
 CRITICAL: Respond with ONLY a valid JSON array. No markdown, no explanation. Start with [ and end with ].
 
@@ -252,7 +252,7 @@ Each activity object MUST include ALL of these fields:
   "affiliate": "<nps.gov URL for this park>"
 }
 
-QUALITY REQUIREMENTS for all 50 activities:
+QUALITY REQUIREMENTS for all 40 activities:
 - Mix difficulty: easy paved walks → moderate trails (avoid strenuous/dangerous)
 - At least 10 stroller_accessible activities (paved paths, visitor centers, scenic drives, easy boardwalks)
 - Include: main visitor center, best viewpoints, scenic drives, ranger programs
@@ -314,7 +314,7 @@ async function seedDestination(dest) {
     system: systemPrompt,
     messages: [{
       role: "user",
-      content: `Generate 50 family-friendly ${ispark ? "trails and activities" : "activities"} for: ${location}. Return ONLY a JSON array.`,
+      content: `Generate 40 family-friendly ${ispark ? "trails and activities" : "activities"} for: ${location}. Return ONLY a JSON array.`,
     }],
   });
 
@@ -397,7 +397,7 @@ async function main() {
     targets = DESTINATIONS;
   }
 
-  console.log(`\n🌍  Seeding ${targets.length} destinations (claude-sonnet-4-6, 50 activities each)\n`);
+  console.log(`\n🌍  Seeding ${targets.length} destinations (claude-sonnet-4-6, 40 activities each)\n`);
   console.log(`    Estimated time: ${Math.round(targets.length * 12 / 60)} min`);
   console.log(`    Estimated cost: ~$${(targets.length * 0.25).toFixed(0)}\n`);
   console.log("─".repeat(60));
@@ -410,14 +410,26 @@ async function main() {
     const num   = `[${succeeded + failed + 1}/${targets.length}]`;
     process.stdout.write(`  ${num} ${label}... `);
 
-    try {
-      const count = await seedDestination(dest);
-      console.log(`✓  ${count} activities`);
-      succeeded++;
-    } catch (e) {
-      console.log(`✗  ${e.message}`);
+    let lastError;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const count = await seedDestination(dest);
+        console.log(`✓  ${count} activities${attempt > 1 ? ` (retry ${attempt - 1})` : ""}`);
+        succeeded++;
+        lastError = null;
+        break;
+      } catch (e) {
+        lastError = e;
+        if (attempt < 2) {
+          process.stdout.write(`  ↻ retrying... `);
+          await sleep(3000);
+        }
+      }
+    }
+    if (lastError) {
+      console.log(`✗  ${lastError.message}`);
       failed++;
-      failures.push({ label, error: e.message });
+      failures.push({ label, error: lastError.message });
     }
 
     // 2s between calls to stay within rate limits
