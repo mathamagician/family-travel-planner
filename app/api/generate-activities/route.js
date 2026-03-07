@@ -134,7 +134,15 @@ export async function POST(request) {
     // Phase A: Check DB cache
     const cached = await getCachedActivities(city, state);
     if (cached) {
-      return Response.json({ activities: cached, source: "cache" });
+      // Normalize DB format → frontend format
+      const normalized = cached.map((a) => ({
+        ...a,
+        hours: typeof a.hours === "object" && a.hours !== null ? (a.hours.display ?? "") : (a.hours ?? ""),
+        notes: a.ai_tips ?? "",
+        duration_mins: a.duration_mins_typical ?? a.duration_mins ?? 90,
+        age_range: a.age_min != null ? `${a.age_min}–${a.age_max ?? 12}` : "0–12",
+      }));
+      return Response.json({ activities: normalized, source: "cache" });
     }
 
     // Phase A: Cache miss — generate with Claude

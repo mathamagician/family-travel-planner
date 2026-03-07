@@ -28,7 +28,7 @@ const CAT_LABELS = {
   under_1h: "<1h",
 };
 
-const PX_PER_MIN = 1.2;
+const PX_PER_MIN = 0.8;
 const SNAP_MINS  = 15;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -52,6 +52,17 @@ function formatDateShort(ds) {
 }
 function snap(mins) {
   return Math.round(mins / SNAP_MINS) * SNAP_MINS;
+}
+
+// Mock weather fallback (deterministic pseudo-random by date)
+function getMockWeather(dateStr) {
+  let hash = 0;
+  for (let i = 0; i < dateStr.length; i++) hash = ((hash << 5) - hash) + dateStr.charCodeAt(i);
+  const seed = Math.abs(hash);
+  const conditions = ["☀️","⛅","☁️","🌧️","☀️","⛅","☀️"];
+  const month = parseInt(dateStr.split("-")[1]);
+  const base = {1:38,2:42,3:52,4:62,5:72,6:82,7:88,8:86,9:78,10:66,11:52,12:40}[month]||70;
+  return { icon: conditions[seed % conditions.length], highF: base + (seed % 15) - 7 };
 }
 
 // ── Block Notes Modal ──────────────────────────────────────────────────────
@@ -197,6 +208,7 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
   }, [totalMins]);
 
   const handleColumnClick = (e) => {
+    if (activeResizeHandleRef.current) return; // suppress click after resize drag
     if (e.target !== colRef.current && !e.target.classList.contains("cal-empty")) return;
     const rect = colRef.current.getBoundingClientRect();
     const minsFromWake = pxToMins(e.clientY - rect.top);
@@ -342,9 +354,9 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
                       📍 {slot.location_name}
                     </div>
                   )}
-                  {/* Notes indicator */}
+                  {/* Notes — show actual text truncated */}
                   {slot.notes && blockH > 46 && (
-                    <div style={{ fontSize:8,color:"#8A9BA5",marginTop:1,lineHeight:1.3 }}>✏️ note</div>
+                    <div title={slot.notes} style={{ fontSize:8,color:"#8A9BA5",marginTop:1,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>✏️ {slot.notes}</div>
                   )}
                 </div>
 
@@ -456,6 +468,19 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
   const [isMobile, setIsMobile] = useState(false);
   const [mobileDay, setMobileDay] = useState(0);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [weatherByDate, setWeatherByDate] = useState({});   // date -> { icon, highF, label }
+
+  // Fetch real weather on mount
+  useEffect(() => {
+    const destination = profile?.destination ?? itinerary?.destination;
+    const startDate = profile?.start_date;
+    const numDays = (itinerary?.days ?? []).length;
+    if (!destination || !startDate || !numDays) return;
+    fetch(`/api/weather?destination=${encodeURIComponent(destination)}&start_date=${startDate}&days=${numDays}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.weather) setWeatherByDate(data.weather); })
+      .catch(() => {}); // silently fall back to mock
+  }, []);
 
   // Refs for resize operation
   const resizeRef = useRef(null); // { blockId, dayIndex, startDuration, startY }
@@ -480,9 +505,10 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
     const onMouseUp = () => {
       if (resizeRef.current) {
         resizeRef.current = null;
-        activeResizeHandleRef.current = false;
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        // Delay clearing so the click event that follows mouseup can detect the resize
+        setTimeout(() => { activeResizeHandleRef.current = false; }, 100);
       }
     };
     window.addEventListener("mousemove", onMouseMove);
@@ -648,6 +674,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
           {days[mobileDay] && (() => {
             const day = days[mobileDay];
             const isWE = (() => { const d = new Date(day.date + "T00:00:00"); return d.getDay() === 0 || d.getDay() === 6; })();
+            const wx = weatherByDate[day.date] || getMockWeather(day.date);
             return (
               <div style={{
                 padding:"10px 12px", borderRadius:"10px 10px 0 0",
@@ -656,7 +683,13 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
                 display:"flex", justifyContent:"space-between", alignItems:"center",
               }}>
                 <div>
-                  <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:800, color:"#1C2B33" }}>Day {day.day}</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:800, color:"#1C2B33" }}>Day {day.day}</span>
+                    <span style={{ display:"flex", alignItems:"center", gap:2 }} title={wx.label}>
+                      <span style={{ fontSize:14 }}>{wx.icon}</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:"#1C2B33" }}>{wx.highF}°F</span>
+                    </span>
+                  </div>
                   <div style={{ fontSize:11, fontWeight:600, color: isWE ? "#E8643A" : "#0B7A8E", marginTop:1 }}>{formatDateShort(day.date)}</div>
                 </div>
                 <div style={{ display:"flex", gap:6, alignItems:"center" }}>
@@ -762,18 +795,25 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
                     const isWE = (() => { const d = new Date(day.date + "T00:00:00"); return d.getDay() === 0 || d.getDay() === 6; })();
                     return (
                       <div key={day.day} style={{ flexShrink:0 }}>
+                        {(() => { const wx = weatherByDate[day.date] || getMockWeather(day.date); return (
                         <div style={{
                           width:160, padding:"8px 10px", borderRadius:"10px 10px 0 0",
                           background: isWE ? "linear-gradient(135deg,#FFF3E0,#FFF9F0)" : "linear-gradient(135deg,#E6F6F8,#F0FAFB)",
                           border:"1px solid #E8E4DF", borderBottom:"none",
                         }}>
-                          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:800, color:"#1C2B33" }}>Day {day.day}</div>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:800, color:"#1C2B33" }}>Day {day.day}</div>
+                            <span style={{ display:"flex", alignItems:"center", gap:2 }} title={wx.label}>
+                              <span style={{ fontSize:13 }}>{wx.icon}</span>
+                              <span style={{ fontSize:10, fontWeight:700, color:"#1C2B33" }}>{wx.highF}°</span>
+                            </span>
+                          </div>
                           <div style={{ fontSize:10, fontWeight:600, color: isWE ? "#E8643A" : "#0B7A8E", marginTop:1 }}>{formatDateShort(day.date)}</div>
                           <button
                             onClick={() => setShowAddModal({ dayIndex: day._idx, startTime: minsToTime(wakeMins + 120) })}
                             style={{ marginTop:5, padding:"2px 8px", borderRadius:6, border:"1px dashed #8A9BA5", background:"transparent", color:"#8A9BA5", fontSize:10, fontWeight:700, cursor:"pointer" }}
                           >+ Add block</button>
-                        </div>
+                        </div>); })()}
 
                         <DayColumn
                           day={day}

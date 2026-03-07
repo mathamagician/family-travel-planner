@@ -47,6 +47,53 @@ const TYPE_CONFIG = {
   hike: { emoji: "🥾", color: "#6B7234", bg: "#F5F5EB" },
 };
 
+const ENERGY_CONFIG = {
+  low: { icon: "😌", label: "Chill", color: "#16A34A", bg: "#F0FDF4" },
+  med: { icon: "⚡", label: "Moderate", color: "#D97706", bg: "#FFFBEB" },
+  high: { icon: "🔥", label: "High", color: "#DC2626", bg: "#FEF2F2" },
+};
+const ENERGY_BY_TYPE = {
+  attraction:"high", entertainment:"high",
+  outdoors:"med", hike:"med",
+  museum:"low", culture:"low", park:"low", food:"low",
+};
+
+// Map activity types to preference keys
+const TYPE_TO_PREF = {
+  outdoors: ["beach_water", "hiking_nature"],
+  park: ["parks_playgrounds"],
+  hike: ["hiking_nature"],
+  museum: ["museums_science"],
+  attraction: ["theme_parks"],
+  entertainment: ["theme_parks", "indoor_play"],
+  culture: ["arts_culture"],
+  food: [],
+};
+
+function isPreferred(activity, preferences) {
+  const prefKeys = TYPE_TO_PREF[activity.type] || [];
+  return prefKeys.some(k => preferences[k]);
+}
+
+function getMockWeather(dateStr) {
+  let hash = 0;
+  for (let i = 0; i < dateStr.length; i++) hash = ((hash << 5) - hash) + dateStr.charCodeAt(i);
+  const seed = Math.abs(hash);
+  const conditions = [
+    { icon: "☀️", label: "Sunny" },
+    { icon: "⛅", label: "Partly Cloudy" },
+    { icon: "☁️", label: "Cloudy" },
+    { icon: "🌧️", label: "Rain" },
+    { icon: "☀️", label: "Sunny" },
+    { icon: "⛅", label: "Partly Cloudy" },
+    { icon: "☀️", label: "Sunny" },
+  ];
+  const month = parseInt(dateStr.split("-")[1]);
+  const baseTempByMonth = { 1:38,2:42,3:52,4:62,5:72,6:82,7:88,8:86,9:78,10:66,11:52,12:40 };
+  const base = baseTempByMonth[month] || 70;
+  return { ...conditions[seed % conditions.length], highF: base + (seed % 15) - 7 };
+}
+
 const SAMPLE_ACTIVITIES = [
   { id: "sdzoo", name: "San Diego Zoo", type: "attraction", hours: "9:00 AM – 5:00 PM", notes: "Large zoo with kid-friendly exhibits. Stroller-friendly.", location: "2920 Zoo Dr, San Diego, CA", age_range: "0-12", duration_mins: 180, affiliate: "#" },
   { id: "balboa", name: "Balboa Park", type: "park", hours: "6:00 AM – 10:00 PM", notes: "Large park with playgrounds, museums; good for flexible days.", location: "Balboa Park, San Diego, CA", age_range: "0-12", duration_mins: 180, affiliate: "#" },
@@ -75,7 +122,8 @@ const DEFAULT_PROFILE = {
   adults: 2, kids: [{ age: 5 }, { age: 2 }], trip_length_days: 5,
   wake_time: "07:00", bed_time: "20:00",
   naps: [{ start: "12:30", duration: 90 }],
-  preferences: { beach: true, museums: true, date_night: false, outdoors: false, food: false, hikes: false, parks: false },
+  preferences: { beach_water: true, parks_playgrounds: true, hiking_nature: true, farms_animals: true, museums_science: true, theme_parks: true, indoor_play: true, arts_culture: true },
+  restaurants: { american: true, mexican: true, asian: true, italian: true, seafood: true, other: true, none: false },
   destination: "San Diego", start_date: "2026-04-15",
 };
 
@@ -208,12 +256,12 @@ input:focus,select:focus{outline:none;border-color:var(--ocean)!important;box-sh
 /* ─── STEP INDICATOR ─── */
 
 function StepIndicator({current,steps}){return(
-<div style={{display:"flex",alignItems:"center",justifyContent:"center",margin:"28px 0 4px"}}>
+<div style={{display:"flex",alignItems:"center",justifyContent:"center",margin:"14px 0 6px"}}>
 {steps.map((s,i)=><div key={i} style={{display:"flex",alignItems:"center"}}>
-<div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
-<div style={{width:34,height:34,borderRadius:"50%",background:i<current?"var(--ocean)":i===current?"var(--sunset)":"var(--mist)",color:i<=current?"#fff":"var(--stone)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,transition:"all .3s",boxShadow:i===current?"0 4px 14px rgba(232,100,58,.3)":"none"}}>{i<current?"✓":i+1}</div>
-<span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:i===current?"var(--sunset)":i<current?"var(--ocean)":"var(--stone)",whiteSpace:"nowrap"}}>{s}</span>
-</div>{i<steps.length-1&&<div style={{width:40,height:2,margin:"0 6px",background:i<current?"var(--ocean)":"var(--mist)",borderRadius:2,marginBottom:18}}/>}</div>)}
+<div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+<div style={{width:28,height:28,borderRadius:"50%",background:i<current?"var(--ocean)":i===current?"var(--sunset)":"var(--mist)",color:i<=current?"#fff":"var(--stone)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,transition:"all .3s",boxShadow:i===current?"0 3px 10px rgba(232,100,58,.3)":"none"}}>{i<current?"✓":i+1}</div>
+<span style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:i===current?"var(--sunset)":i<current?"var(--ocean)":"var(--stone)",whiteSpace:"nowrap"}}>{s}</span>
+</div>{i<steps.length-1&&<div style={{width:28,height:2,margin:"0 4px",background:i<current?"var(--ocean)":"var(--mist)",borderRadius:2,marginBottom:14}}/>}</div>)}
 </div>);}
 
 /* ─── STEP 1: FAMILY ─── */
@@ -223,162 +271,256 @@ function FamilyProfileStep({profile,setProfile,onNext}){
   const addKid=()=>setProfile({...profile,kids:[...profile.kids,{age:1}]});
   const removeKid=i=>setProfile({...profile,kids:profile.kids.filter((_,j)=>j!==i)});
   const togglePref=k=>setProfile({...profile,preferences:{...profile.preferences,[k]:!profile.preferences[k]}});
+  const toggleRestaurant=k=>{
+    if(k==="none"){
+      const newNone=!profile.restaurants?.none;
+      if(newNone)setProfile({...profile,restaurants:{american:false,mexican:false,asian:false,italian:false,seafood:false,other:false,none:true}});
+      else setProfile({...profile,restaurants:{...profile.restaurants,none:false}});
+    } else {
+      setProfile({...profile,restaurants:{...profile.restaurants,[k]:!profile.restaurants?.[k],none:false}});
+    }
+  };
   const addNap=()=>setProfile({...profile,naps:[...profile.naps,{start:"14:00",duration:60}]});
   const removeNap=i=>setProfile({...profile,naps:profile.naps.filter((_,j)=>j!==i)});
   const updateNap=(i,f,v)=>{const n=[...profile.naps];n[i]={...n[i],[f]:f==="duration"?parseInt(v):v};setProfile({...profile,naps:n});};
-  const S={width:"100%",padding:"10px 14px",borderRadius:10,border:"2px solid var(--mist)",fontSize:14,fontWeight:600,background:"#fff",color:"var(--ink)",transition:"all .2s"};
-  const L={display:"block",fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"var(--stone)",marginBottom:6};
+  const S={width:"100%",padding:"9px 12px",borderRadius:9,border:"2px solid var(--mist)",fontSize:13,fontWeight:600,background:"#fff",color:"var(--ink)",transition:"all .2s"};
+  const L={display:"block",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"var(--stone)",marginBottom:5};
   const ok=profile.destination.trim()&&profile.kids.length>0&&profile.trip_length_days>0;
+  const prefBtn=(active,color)=>({padding:"5px 10px",borderRadius:14,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all .2s",whiteSpace:"nowrap",border:`2px solid ${active?color:"var(--mist)"}`,background:active?(color==="var(--ocean)"?"var(--ocean-light)":"#FAF5FF"):"transparent",color:active?color:"var(--stone)"});
+  const restaurants=profile.restaurants??{american:true,mexican:true,asian:false,italian:false,seafood:false,other:false,none:false};
   return(
-  <div className="step-enter" style={{maxWidth:640,margin:"0 auto"}}>
-    <div style={{textAlign:"center",marginBottom:24}}>
-      <span style={{fontSize:44,display:"block",marginBottom:6}}>👨‍👩‍👧‍👦</span>
-      <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:800}}>Tell Us About Your Family</h2>
-      <p style={{color:"var(--stone)",fontSize:13,marginTop:4}}>We&apos;ll build an itinerary around your kids&apos; routine.</p>
+  <div className="step-enter" style={{maxWidth:620,margin:"0 auto"}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:4,marginTop:8}}>
+      <span style={{fontSize:32}}>👨‍👩‍👧‍👦</span>
+      <div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:800,lineHeight:1.2}}>Tell Us About Your Family</h2>
+        <p style={{color:"var(--stone)",fontSize:11,marginTop:1}}>We&apos;ll build an itinerary around your kids&apos; routine.</p>
+      </div>
     </div>
-    <div style={{background:"var(--cloud)",borderRadius:18,padding:24,border:"1px solid var(--mist)",boxShadow:"0 2px 12px rgba(0,0,0,.04)"}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:18}}>
-        <div><label style={L}>Destination</label><input style={S} value={profile.destination} onChange={e=>setProfile({...profile,destination:e.target.value})} placeholder="e.g. San Diego"/></div>
-        <div><label style={L}>Start Date</label><input style={S} type="date" value={profile.start_date} onChange={e=>setProfile({...profile,start_date:e.target.value})}/></div>
+    <div style={{background:"var(--cloud)",borderRadius:16,padding:18,border:"1px solid var(--mist)",boxShadow:"0 2px 10px rgba(0,0,0,.04)"}}>
+      {/* Destination + Date + Days + Adults — one row */}
+      <div style={{display:"grid",gridTemplateColumns:"1.3fr 1fr .8fr .6fr",gap:10,marginBottom:12}}>
+        {[{label:"Destination",type:"text",val:profile.destination,onChange:e=>setProfile({...profile,destination:e.target.value}),ph:"e.g. San Diego"},
+          {label:"Date",type:"date",val:profile.start_date,onChange:e=>setProfile({...profile,start_date:e.target.value})},
+          {label:"Days",type:"number",val:profile.trip_length_days,onChange:e=>setProfile({...profile,trip_length_days:parseInt(e.target.value)||1}),min:1,max:21},
+          {label:"Adults",type:"number",val:profile.adults,onChange:e=>setProfile({...profile,adults:parseInt(e.target.value)||1}),min:1,max:6},
+        ].map((f,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
+            <label style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"var(--stone)",whiteSpace:"nowrap"}}>{f.label}</label>
+            <input style={{...S,padding:"7px 10px",fontSize:12}} type={f.type} value={f.val} onChange={f.onChange} placeholder={f.ph} min={f.min} max={f.max}/>
+          </div>
+        ))}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:18}}>
-        <div><label style={L}>Trip Length (days)</label><input style={S} type="number" min={1} max={21} value={profile.trip_length_days} onChange={e=>setProfile({...profile,trip_length_days:parseInt(e.target.value)||1})}/></div>
-        <div><label style={L}>Adults</label><input style={S} type="number" min={1} max={6} value={profile.adults} onChange={e=>setProfile({...profile,adults:parseInt(e.target.value)||1})}/></div>
-      </div>
-      <div style={{marginBottom:18}}>
+      {/* Children */}
+      <div style={{marginBottom:12}}>
         <label style={L}>Children</label>
-        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-          {profile.kids.map((kid,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--ocean-light)",borderRadius:10,padding:"6px 10px"}}>
-            <span style={{fontSize:16}}>👶</span><span style={{fontSize:12,fontWeight:700,color:"var(--ocean)"}}>Age</span>
-            <input type="number" min={0} max={17} value={kid.age} onChange={e=>updateKid(i,e.target.value)} style={{width:44,padding:"3px 6px",borderRadius:6,border:"2px solid transparent",fontSize:13,fontWeight:700,textAlign:"center",background:"#fff"}}/>
-            {profile.kids.length>1&&<button onClick={()=>removeKid(i)} style={{background:"none",border:"none",color:"var(--stone)",cursor:"pointer",fontSize:15,lineHeight:1,padding:0}}>×</button>}
-          </div>)}
-          <button onClick={addKid} style={{display:"flex",alignItems:"center",gap:4,background:"var(--mist)",borderRadius:10,padding:"6px 12px",border:"2px dashed var(--stone)",cursor:"pointer",fontSize:12,fontWeight:700,color:"var(--stone)"}}>+ Add Child</button>
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:18}}>
-        <div><label style={L}>🌅 Wake Time</label>
-          <select style={S} value={profile.wake_time} onChange={e=>setProfile({...profile,wake_time:e.target.value})}>
-            {HALF_HOURS.filter(t=>timeToMins(t)>=300&&timeToMins(t)<=600).map(t=><option key={t} value={t}>{formatTime12(t)}</option>)}
-          </select></div>
-        <div><label style={L}>🌙 Bed Time</label>
-          <select style={S} value={profile.bed_time} onChange={e=>setProfile({...profile,bed_time:e.target.value})}>
-            {HALF_HOURS.filter(t=>timeToMins(t)>=1020&&timeToMins(t)<=1320).map(t=><option key={t} value={t}>{formatTime12(t)}</option>)}
-          </select></div>
-      </div>
-      <div style={{marginBottom:18}}>
-        <label style={L}>😴 Nap Times</label>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {profile.naps.map((nap,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",background:"#FFF9F0",borderRadius:10,padding:"8px 12px",border:"1px solid #F0E6D6"}}>
-            <span style={{fontSize:16}}>😴</span>
-            <span style={{fontSize:12,fontWeight:700,color:"var(--stone)"}}>Start</span>
-            <select value={nap.start} onChange={e=>updateNap(i,"start",e.target.value)} style={{padding:"4px 8px",borderRadius:6,border:"2px solid var(--mist)",fontSize:13,fontWeight:600,background:"#fff"}}>
-              {HALF_HOURS.filter(t=>timeToMins(t)>=540&&timeToMins(t)<=1020).map(t=><option key={t} value={t}>{formatTime12(t)}</option>)}
-            </select>
-            <span style={{fontSize:12,fontWeight:700,color:"var(--stone)"}}>Duration</span>
-            <select value={nap.duration} onChange={e=>updateNap(i,"duration",e.target.value)} style={{padding:"4px 8px",borderRadius:6,border:"2px solid var(--mist)",fontSize:13,fontWeight:600,background:"#fff"}}>
-              {DURATIONS.map(d=><option key={d} value={d}>{formatDuration(d)}</option>)}
-            </select>
-            <button onClick={()=>removeNap(i)} style={{background:"none",border:"none",color:"var(--stone)",cursor:"pointer",fontSize:15,lineHeight:1,marginLeft:"auto"}}>×</button>
-          </div>)}
-          <button onClick={addNap} style={{display:"flex",alignItems:"center",gap:4,alignSelf:"flex-start",background:"var(--mist)",borderRadius:10,padding:"6px 14px",border:"2px dashed var(--stone)",cursor:"pointer",fontSize:12,fontWeight:700,color:"var(--stone)"}}>+ Add Nap Time</button>
-        </div>
-      </div>
-      <div><label style={L}>Preferences</label>
         <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-          {[{key:"beach",label:"🏖️ Beach"},{key:"museums",label:"🏛️ Museums"},{key:"date_night",label:"🌙 Date Night"},{key:"outdoors",label:"🌿 Outdoors"},{key:"food",label:"🍕 Food"},{key:"hikes",label:"🥾 Hikes"},{key:"parks",label:"🌳 Parks"}].map(p=>
-            <button key={p.key} onClick={()=>togglePref(p.key)} style={{padding:"7px 14px",borderRadius:18,border:"2px solid "+(profile.preferences[p.key]?"var(--ocean)":"var(--mist)"),background:profile.preferences[p.key]?"var(--ocean-light)":"transparent",color:profile.preferences[p.key]?"var(--ocean)":"var(--stone)",fontWeight:700,fontSize:12,cursor:"pointer",transition:"all .2s"}}>{p.label}</button>)}
+          {profile.kids.map((kid,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:5,background:"var(--ocean-light)",borderRadius:8,padding:"5px 8px"}}>
+            <span style={{fontSize:14}}>👶</span><span style={{fontSize:11,fontWeight:700,color:"var(--ocean)"}}>Age</span>
+            <input type="number" min={0} max={17} value={kid.age} onChange={e=>updateKid(i,e.target.value)} style={{width:38,padding:"2px 4px",borderRadius:5,border:"2px solid transparent",fontSize:12,fontWeight:700,textAlign:"center",background:"#fff"}}/>
+            {profile.kids.length>1&&<button onClick={()=>removeKid(i)} style={{background:"none",border:"none",color:"var(--stone)",cursor:"pointer",fontSize:14,lineHeight:1,padding:0}}>×</button>}
+          </div>)}
+          <button onClick={addKid} style={{display:"flex",alignItems:"center",gap:3,background:"var(--mist)",borderRadius:8,padding:"5px 10px",border:"2px dashed var(--stone)",cursor:"pointer",fontSize:11,fontWeight:700,color:"var(--stone)"}}>+ Add Child</button>
+        </div>
+      </div>
+      {/* Wake + Bed inline */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <label style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"var(--stone)",whiteSpace:"nowrap"}}>🌅 Wake</label>
+          <select style={{...S,padding:"7px 10px",fontSize:12}} value={profile.wake_time} onChange={e=>setProfile({...profile,wake_time:e.target.value})}>
+            {HALF_HOURS.filter(t=>timeToMins(t)>=300&&timeToMins(t)<=600).map(t=><option key={t} value={t}>{formatTime12(t)}</option>)}
+          </select>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <label style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"var(--stone)",whiteSpace:"nowrap"}}>🌙 Bed</label>
+          <select style={{...S,padding:"7px 10px",fontSize:12}} value={profile.bed_time} onChange={e=>setProfile({...profile,bed_time:e.target.value})}>
+            {HALF_HOURS.filter(t=>timeToMins(t)>=1020&&timeToMins(t)<=1320).map(t=><option key={t} value={t}>{formatTime12(t)}</option>)}
+          </select>
+        </div>
+      </div>
+      {/* Naps inline chips */}
+      <div style={{marginBottom:12}}>
+        <label style={L}>😴 Nap Times</label>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+          {profile.naps.map((nap,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"#FFF9F0",borderRadius:8,padding:"5px 10px",border:"1px solid #F0E6D6"}}>
+              <span style={{fontSize:14}}>😴</span>
+              <select value={nap.start} onChange={e=>updateNap(i,"start",e.target.value)} style={{padding:"2px 4px",borderRadius:5,border:"1.5px solid var(--mist)",fontSize:11,fontWeight:600,background:"#fff"}}>
+                {HALF_HOURS.filter(t=>timeToMins(t)>=540&&timeToMins(t)<=1020).map(t=><option key={t} value={t}>{formatTime12(t)}</option>)}
+              </select>
+              <span style={{fontSize:10,color:"var(--stone)",fontWeight:700}}>for</span>
+              <select value={nap.duration} onChange={e=>updateNap(i,"duration",e.target.value)} style={{padding:"2px 4px",borderRadius:5,border:"1.5px solid var(--mist)",fontSize:11,fontWeight:600,background:"#fff"}}>
+                {DURATIONS.map(d=><option key={d} value={d}>{formatDuration(d)}</option>)}
+              </select>
+              <button onClick={()=>removeNap(i)} style={{background:"none",border:"none",color:"var(--stone)",cursor:"pointer",fontSize:13,lineHeight:1,padding:0}}>×</button>
+            </div>
+          ))}
+          <button onClick={addNap} style={{display:"flex",alignItems:"center",gap:3,background:"var(--mist)",borderRadius:8,padding:"5px 10px",border:"2px dashed var(--stone)",cursor:"pointer",fontSize:11,fontWeight:700,color:"var(--stone)"}}>+ Add Nap</button>
+        </div>
+      </div>
+      {/* Preferences */}
+      <div>
+        <label style={L}>🌞 Outdoor</label>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:5,marginBottom:10}}>
+          {[{key:"beach_water",label:"🏖️ Beach"},{key:"parks_playgrounds",label:"🌳 Parks"},{key:"hiking_nature",label:"🥾 Hikes"},{key:"farms_animals",label:"🐄 Farms"}].map(p=>
+            <button key={p.key} onClick={()=>togglePref(p.key)} style={prefBtn(profile.preferences[p.key],"var(--ocean)")}>{p.label}</button>)}
+        </div>
+        <label style={L}>🏠 Indoor</label>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:5,marginBottom:10}}>
+          {[{key:"museums_science",label:"🔬 Museums"},{key:"theme_parks",label:"🎢 Theme Parks"},{key:"indoor_play",label:"🎪 Play"},{key:"arts_culture",label:"🎭 Arts"}].map(p=>
+            <button key={p.key} onClick={()=>togglePref(p.key)} style={prefBtn(profile.preferences[p.key],"#7C3AED")}>{p.label}</button>)}
+        </div>
+        <label style={L}>🍽️ Restaurants</label>
+        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+          {[{key:"american",label:"🍔 American"},{key:"mexican",label:"🌮 Mexican"},{key:"asian",label:"🍜 Asian"},{key:"italian",label:"🍕 Italian"},{key:"seafood",label:"🦞 Seafood"},{key:"other",label:"🍽️ Other"},{key:"none",label:"🚫 None"}].map(p=>{
+            const isNone=p.key==="none";const active=restaurants[p.key];const disabled=!isNone&&restaurants.none;
+            return(<button key={p.key} onClick={()=>!disabled&&toggleRestaurant(p.key)} style={{
+              padding:"5px 10px",borderRadius:14,fontSize:11,fontWeight:700,cursor:disabled?"not-allowed":"pointer",transition:"all .2s",whiteSpace:"nowrap",
+              border:`2px solid ${active?(isNone?"#9CA3AF":"#DC2626"):"var(--mist)"}`,
+              background:active?(isNone?"#F3F4F6":"#FFF5F5"):"transparent",
+              color:active?(isNone?"#6B7280":"#DC2626"):disabled?"#D1CCC6":"var(--stone)",opacity:disabled?0.5:1,
+            }}>{p.label}</button>);
+          })}
         </div>
       </div>
     </div>
-    <div style={{textAlign:"center",marginTop:22}}>
-      <button onClick={onNext} disabled={!ok} style={{padding:"13px 44px",borderRadius:12,border:"none",background:ok?"linear-gradient(135deg,var(--sunset),#F09A3A)":"var(--mist)",color:ok?"#fff":"var(--stone)",fontSize:15,fontWeight:800,cursor:ok?"pointer":"not-allowed",boxShadow:ok?"0 6px 20px rgba(232,100,58,.3)":"none"}}>Find Activities →</button>
+    <div style={{textAlign:"center",marginTop:18}}>
+      <button onClick={onNext} disabled={!ok} style={{padding:"12px 40px",borderRadius:11,border:"none",background:ok?"linear-gradient(135deg,var(--sunset),#F09A3A)":"var(--mist)",color:ok?"#fff":"var(--stone)",fontSize:14,fontWeight:800,cursor:ok?"pointer":"not-allowed",boxShadow:ok?"0 5px 16px rgba(232,100,58,.3)":"none"}}>Find Activities →</button>
     </div>
   </div>);
 }
 
 /* ─── STEP 2: ACTIVITIES ─── */
 
-function ActivityCard({activity,selected,onToggle,index,destination}){
+function ActivityCard({activity,selected,onToggle,index,destination,isNonPref}){
   const c=TYPE_CONFIG[activity.type]||TYPE_CONFIG.attraction;
+  const en=ENERGY_CONFIG[activity.energy ?? ENERGY_BY_TYPE[activity.type] ?? "med"];
+  const showGray=isNonPref&&!selected;
   const admissionText = activity.admission_adult_usd > 0
     ? `$${activity.admission_adult_usd}/adult${activity.admission_child_usd > 0 ? ` · $${activity.admission_child_usd}/child` : ""}`
     : (activity.admission_adult_usd === 0 ? "Free" : null);
-  return(<div onClick={onToggle} style={{opacity:0,animation:"slideUp .4s ease-out "+index*.04+"s forwards",background:"#fff",borderRadius:14,border:"2px solid "+(selected?c.color:"#E8E4DF"),cursor:"pointer",transition:"all .25s",boxShadow:selected?"0 3px 12px "+c.color+"22":"none",position:"relative"}}>
-    <div style={{position:"absolute",top:12,right:12,width:22,height:22,borderRadius:6,border:"2px solid "+(selected?c.color:"#D1CCC6"),background:selected?c.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      {selected&&<span style={{color:"#fff",fontSize:12,fontWeight:800}}>✓</span>}</div>
-    <div style={{padding:"16px 16px 14px"}}>
-      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6,paddingRight:28}}>
-        <span style={{fontSize:22}}>{c.emoji}</span>
-        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:"var(--ink)",lineHeight:1.3}}>{activity.name}</h3>
+  return(<div onClick={onToggle} style={{opacity:0,animation:"slideUp .4s ease-out "+index*.04+"s forwards",background:showGray?"#F5F4F2":"#fff",borderRadius:12,border:showGray?"2px dashed #D1CCC6":"2px solid "+(selected?c.color:"#E8E4DF"),cursor:"pointer",transition:"all .25s",boxShadow:selected?"0 3px 12px "+c.color+"22":"none",position:"relative"}}>
+    <div style={{position:"absolute",top:10,right:10,width:20,height:20,borderRadius:5,border:"2px solid "+(selected?c.color:"#D1CCC6"),background:selected?c.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      {selected&&<span style={{color:"#fff",fontSize:11,fontWeight:800}}>✓</span>}</div>
+    <div style={{padding:"12px 12px 10px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,paddingRight:24}}>
+        <span style={{fontSize:18}}>{c.emoji}</span>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:700,color:showGray?"var(--stone)":"var(--ink)",lineHeight:1.3}}>{activity.name}</h3>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,flexWrap:"wrap"}}>
-        <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:c.color,background:c.bg,padding:"2px 7px",borderRadius:5}}>{activity.type}</span>
-        {admissionText && <span style={{fontSize:10,fontWeight:700,color:admissionText==="Free"?"#2D8A4E":"#1C2B33",background:admissionText==="Free"?"#F0FAF4":"#F8F6F2",padding:"2px 7px",borderRadius:5}}>{admissionText}</span>}
+      <div style={{display:"flex",gap:4,marginBottom:5,flexWrap:"wrap"}}>
+        <span style={{fontSize:8,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:showGray?"var(--stone)":c.color,background:showGray?"#EBEBEB":c.bg,padding:"1px 6px",borderRadius:4}}>{activity.type}</span>
+        {en&&<span style={{fontSize:8,fontWeight:800,color:showGray?"var(--stone)":en.color,background:showGray?"#EBEBEB":en.bg,padding:"1px 6px",borderRadius:4}}>{en.icon} {en.label}</span>}
+        {admissionText&&<span style={{fontSize:8,fontWeight:700,color:admissionText==="Free"?"#2D8A4E":"#1C2B33",background:admissionText==="Free"?"#F0FAF4":"#F8F6F2",padding:"1px 6px",borderRadius:4}}>{admissionText}</span>}
       </div>
-      <p style={{fontSize:12,color:"var(--stone)",lineHeight:1.5,marginBottom:8}}>{activity.notes}</p>
-      <div style={{display:"flex",flexWrap:"wrap",gap:8,fontSize:11,color:"var(--stone)",marginBottom:8}}>
-        <span>🕐 {activity.hours}</span><span>⏱️ {formatDuration(activity.duration_mins)}</span><span>👶 Ages {activity.age_range}</span>
+      <p style={{fontSize:11,color:"var(--stone)",lineHeight:1.4,marginBottom:6}}>{activity.notes}</p>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6,fontSize:10,color:"var(--stone)",marginBottom:6}}>
+        <span>🕐 {activity.hours}</span><span>⏱️ {formatDuration(activity.duration_mins)}</span><span>👶 {activity.age_range}</span>
       </div>
       <ViatorButton activity={activity} destination={destination} />
     </div>
   </div>);
 }
 
-const INITIAL_SHOW = 30;
-
 function ActivitiesStep({profile,activities,setActivities,selectedIds,setSelectedIds,onNext,onBack}){
   const[loading,setLoading]=useState(false),[error,setError]=useState(null);
-  const[showAll,setShowAll]=useState(false);
 
-  // Calls our backend route — API key stays on the server (Phase A of AI engine)
-  const generate=async()=>{setLoading(true);setError(null);setShowAll(false);try{
+  const generate=async()=>{setLoading(true);setError(null);try{
     const r=await fetch("/api/generate-activities",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({destination:profile.destination,kids:profile.kids,trip_length_days:profile.trip_length_days,preferences:profile.preferences})});
     const data=await r.json();
     if(!r.ok)throw new Error(data.error||"API error "+r.status);
-    // New API returns { activities, source } — handle both old and new format
     const list=Array.isArray(data)?data:(data.activities??[]);
     if(!list.length)throw new Error("No activities returned");
-    setActivities(list);setSelectedIds(new Set(list.map(a=>a.id)));
+    setActivities(list);
+    // Auto-select only preferred activities
+    const prefIds=new Set(list.filter(a=>isPreferred(a,profile.preferences)).map(a=>a.id));
+    setSelectedIds(prefIds.size>0?prefIds:new Set(list.map(a=>a.id)));
   }catch(e){console.error(e);setError("Generation failed: "+e.message);if(!activities.length){setActivities(SAMPLE_ACTIVITIES);setSelectedIds(new Set(SAMPLE_ACTIVITIES.map(a=>a.id)));}}finally{setLoading(false);}};
 
   useEffect(()=>{if(!activities.length){setActivities(SAMPLE_ACTIVITIES);setSelectedIds(new Set(SAMPLE_ACTIVITIES.map(a=>a.id)));}},[]);
   const toggle=id=>{const n=new Set(selectedIds);n.has(id)?n.delete(id):n.add(id);setSelectedIds(n);};
 
-  const visible=showAll?activities:activities.slice(0,INITIAL_SHOW);
-  const hidden=activities.length-INITIAL_SHOW;
+  // Sort: preferred first, then non-preferred
+  const preferred=activities.filter(a=>isPreferred(a,profile.preferences));
+  const nonPreferred=activities.filter(a=>!isPreferred(a,profile.preferences));
+  const sorted=[...preferred,...nonPreferred];
 
-  const showMore=()=>{
-    setShowAll(true);
-    // Auto-select newly revealed activities
-    const extra=activities.slice(INITIAL_SHOW).map(a=>a.id);
-    setSelectedIds(prev=>{const n=new Set(prev);extra.forEach(id=>n.add(id));return n;});
+  // 3-state toggle: All → Preferred Only → None → All
+  const allSelected=activities.length>0&&selectedIds.size===activities.length;
+  const prefOnlySelected=activities.length>0&&preferred.length>0&&preferred.every(a=>selectedIds.has(a.id))&&nonPreferred.every(a=>!selectedIds.has(a.id));
+  const cycleSelection=()=>{
+    if(allSelected) setSelectedIds(new Set(preferred.map(a=>a.id)));
+    else if(prefOnlySelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(activities.map(a=>a.id)));
   };
+  const toggleLabel=allSelected?"Preferred Only":prefOnlySelected?"Deselect All":"Select All";
+
+  const NavRow = ({ compact }) => (
+    <div style={{display:"flex",alignItems:"center",maxWidth:1060,margin:compact?"16px auto 10px":"0 auto 14px"}}>
+      <button onClick={onBack} style={{padding:"7px 14px",borderRadius:9,border:"2px solid var(--mist)",background:"transparent",color:"var(--stone)",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0}}>← Family</button>
+      <div style={{flex:1,display:"flex",justifyContent:"center",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        {!compact&&<>
+          <button onClick={generate} disabled={loading} style={{padding:"7px 16px",borderRadius:9,border:"2px solid var(--ocean)",background:loading?"var(--ocean-light)":"var(--cloud)",color:"var(--ocean)",fontSize:11,fontWeight:700,cursor:loading?"wait":"pointer",animation:loading?"pulse 1.5s infinite":"none"}}>{loading?"Generating...":"✨ Generate with AI"}</button>
+          {activities.length>0&&(
+            <button onClick={cycleSelection} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 12px",borderRadius:9,border:"2px solid var(--mist)",background:"transparent",cursor:"pointer",fontSize:11,fontWeight:700,color:"var(--stone)"}}>
+              <div style={{width:15,height:15,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid "+(allSelected?"var(--ocean)":prefOnlySelected?"var(--sunset)":"var(--stone)"),background:allSelected?"var(--ocean)":prefOnlySelected?"var(--sunset)":"transparent"}}>
+                {(allSelected||prefOnlySelected)&&<span style={{color:"#fff",fontSize:9,fontWeight:800}}>{allSelected?"✓":"★"}</span>}
+              </div>
+              {toggleLabel}
+            </button>
+          )}
+          {activities.length>0&&<span style={{fontSize:11,color:"var(--stone)",fontWeight:600}}>{selectedIds.size}/{activities.length}</span>}
+        </>}
+        {compact&&<>
+          <div style={{flex:1,height:1,background:"var(--mist)"}}/>
+          <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:"var(--stone)"}}>Other Activities</span>
+          <div style={{flex:1,height:1,background:"var(--mist)"}}/>
+        </>}
+      </div>
+      <button onClick={onNext} disabled={!selectedIds.size} style={{padding:"7px 16px",borderRadius:9,border:"none",background:selectedIds.size?"linear-gradient(135deg,var(--sunset),#F09A3A)":"var(--mist)",color:selectedIds.size?"#fff":"var(--stone)",fontSize:11,fontWeight:800,cursor:selectedIds.size?"pointer":"not-allowed",boxShadow:selectedIds.size?"0 4px 12px rgba(232,100,58,.3)":"none",flexShrink:0}}>Build Itinerary →</button>
+    </div>
+  );
 
   return(<div className="step-enter">
-    <div style={{textAlign:"center",marginBottom:20}}>
-      <span style={{fontSize:44,display:"block",marginBottom:6}}>🎯</span>
-      <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:800}}>Activities in {profile.destination}</h2>
-      <p style={{color:"var(--stone)",fontSize:13,marginTop:4}}>Select activities — each will appear once in your itinerary. Extras become free time.</p>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:8,marginTop:8}}>
+      <span style={{fontSize:28}}>🎯</span>
+      <div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:800}}>Activities in {profile.destination}</h2>
+        <p style={{color:"var(--stone)",fontSize:11,marginTop:1}}>Preferred activities are pre-selected. Others appear below.</p>
+      </div>
     </div>
-    <div style={{display:"flex",justifyContent:"center",gap:10,marginBottom:16}}>
-      <button onClick={generate} disabled={loading} style={{padding:"9px 20px",borderRadius:10,border:"2px solid var(--ocean)",background:loading?"var(--ocean-light)":"var(--cloud)",color:"var(--ocean)",fontSize:12,fontWeight:700,cursor:loading?"wait":"pointer",animation:loading?"pulse 1.5s infinite":"none"}}>{loading?"Generating...":"✨ Generate with AI"}</button>
-      <span style={{display:"flex",alignItems:"center",fontSize:12,color:"var(--stone)",fontWeight:600}}>{selectedIds.size}/{activities.length} selected</span>
-    </div>
-    {error&&<div style={{background:"var(--sunset-light)",borderRadius:10,padding:"10px 14px",marginBottom:14,maxWidth:660,margin:"0 auto 14px"}}><p style={{color:"var(--sunset)",fontSize:12,margin:0}}>{error}</p></div>}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14,maxWidth:1060,margin:"0 auto"}}>
-      {visible.map((a,i)=><ActivityCard key={a.id} activity={a} selected={selectedIds.has(a.id)} onToggle={()=>toggle(a.id)} index={i} destination={profile.destination}/>)}
-    </div>
-    {!showAll&&hidden>0&&(
-      <div style={{textAlign:"center",marginTop:16}}>
-        <button onClick={showMore} style={{padding:"9px 24px",borderRadius:10,border:"2px solid var(--mist)",background:"transparent",color:"var(--stone)",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-          Show {hidden} more activities ↓
-        </button>
+
+    {/* Top nav row: ← Family | Generate | Toggle | count | Build Itinerary → */}
+    <NavRow compact={false} />
+
+    {error&&<div style={{background:"var(--sunset-light)",borderRadius:9,padding:"8px 12px",marginBottom:12,maxWidth:1060,margin:"0 auto 12px"}}><p style={{color:"var(--sunset)",fontSize:11,margin:0}}>{error}</p></div>}
+    {activities.length===0&&!loading&&(
+      <div style={{textAlign:"center",padding:"36px 24px",maxWidth:460,margin:"0 auto"}}>
+        <div style={{fontSize:52,marginBottom:10}}>🗺️</div>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:800,color:"var(--ink)",marginBottom:6}}>Ready to explore {profile.destination}?</h3>
+        <p style={{fontSize:12,color:"var(--stone)",lineHeight:1.5,marginBottom:16}}>Hit "Generate with AI" above to find family-friendly activities.</p>
+        <button onClick={generate} style={{padding:"10px 28px",borderRadius:10,border:"none",background:"linear-gradient(135deg,var(--ocean),#0EA5A3)",color:"#fff",fontSize:13,fontWeight:800,cursor:"pointer",boxShadow:"0 4px 14px rgba(11,122,142,.3)"}}>✨ Generate Activities</button>
       </div>
     )}
-    <div style={{display:"flex",justifyContent:"center",gap:10,marginTop:24}}>
-      <button onClick={onBack} style={{padding:"11px 28px",borderRadius:10,border:"2px solid var(--mist)",background:"transparent",color:"var(--stone)",fontSize:13,fontWeight:700,cursor:"pointer"}}>← Family</button>
-      <button onClick={onNext} disabled={!selectedIds.size} style={{padding:"11px 36px",borderRadius:10,border:"none",background:selectedIds.size?"linear-gradient(135deg,var(--sunset),#F09A3A)":"var(--mist)",color:selectedIds.size?"#fff":"var(--stone)",fontSize:13,fontWeight:800,cursor:selectedIds.size?"pointer":"not-allowed",boxShadow:selectedIds.size?"0 6px 20px rgba(232,100,58,.3)":"none"}}>Build Itinerary →</button>
+
+    {/* Preferred activities */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12,maxWidth:1060,margin:"0 auto"}}>
+      {preferred.map((a,i)=><ActivityCard key={a.id} activity={a} selected={selectedIds.has(a.id)} onToggle={()=>toggle(a.id)} index={i} destination={profile.destination} isNonPref={false}/>)}
+    </div>
+
+    {/* Mid nav row: ← Family | —— Other Activities —— | Build Itinerary → */}
+    {nonPreferred.length>0&&<NavRow compact={true} />}
+
+    {/* Non-preferred activities */}
+    {nonPreferred.length>0&&(
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12,maxWidth:1060,margin:"0 auto"}}>
+        {nonPreferred.map((a,i)=><ActivityCard key={a.id} activity={a} selected={selectedIds.has(a.id)} onToggle={()=>toggle(a.id)} index={preferred.length+i} destination={profile.destination} isNonPref={!selectedIds.has(a.id)}/>)}
+      </div>
+    )}
+
+    {/* Bottom nav row */}
+    <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:20}}>
+      <button onClick={onBack} style={{padding:"10px 24px",borderRadius:9,border:"2px solid var(--mist)",background:"transparent",color:"var(--stone)",fontSize:12,fontWeight:700,cursor:"pointer"}}>← Family</button>
+      <button onClick={onNext} disabled={!selectedIds.size} style={{padding:"10px 32px",borderRadius:9,border:"none",background:selectedIds.size?"linear-gradient(135deg,var(--sunset),#F09A3A)":"var(--mist)",color:selectedIds.size?"#fff":"var(--stone)",fontSize:12,fontWeight:800,cursor:selectedIds.size?"pointer":"not-allowed",boxShadow:selectedIds.size?"0 5px 16px rgba(232,100,58,.3)":"none"}}>Build Itinerary →</button>
     </div>
   </div>);
 }
@@ -606,15 +748,16 @@ export default function FamilyTravelPlanner(){
 
   return(<div style={{minHeight:"100vh",background:"var(--sand)",fontFamily:"'Nunito',sans-serif"}}>
     <style>{CSS}</style>
-    <header style={{padding:"20px 24px 0",maxWidth:1200,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-      <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <span style={{fontSize:28}}>🧳</span>
-        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(18px,3vw,24px)",fontWeight:800,color:"var(--ink)"}}>Family Travel Planner</h1>
+    <header style={{padding:"12px 20px 0",maxWidth:1200,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <div style={{display:"flex",alignItems:"center",gap:7}}>
+        <span style={{fontSize:24}}>🧳</span>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(16px,3vw,22px)",fontWeight:800,color:"var(--ink)"}}>ToddlerTrip</h1>
+        <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"var(--ocean)",background:"var(--ocean-light)",padding:"2px 8px",borderRadius:4,marginLeft:4}}>Beta</span>
       </div>
       <UserMenu/>
     </header>
     <StepIndicator current={step} steps={["Family","Activities","Itinerary","Packing"]}/>
-    <main style={{padding:"12px 20px 48px",maxWidth:1200,margin:"0 auto"}}>
+    <main style={{padding:"8px 16px 40px",maxWidth:1200,margin:"0 auto"}}>
       {step===0&&<>
         <MyTripsPanel onLoadTrip={handleLoadTrip}/>
         <FamilyProfileStep profile={profile} setProfile={setProfile} onNext={()=>setStep(1)}/>

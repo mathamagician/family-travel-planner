@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { filterPackingList } from "../lib/packingUtils";
 
 const CATEGORY_CONFIG = {
   documents:     { emoji: "📄", label: "Documents & IDs" },
@@ -17,10 +18,9 @@ const CATEGORY_CONFIG = {
 
 const CATEGORY_ORDER = ["documents", "health_safety", "baby_gear", "clothing", "toiletries", "snacks", "activities", "tech", "outdoor", "misc"];
 
-const AMAZON_TAG    = process.env.NEXT_PUBLIC_AMAZON_AFFILIATE_TAG ?? "familytravel0a-20";
-const BABYQUIP_URL  = process.env.NEXT_PUBLIC_BABYQUIP_URL ?? "https://www.babyquip.com?a=b33db96";
+const AMAZON_TAG   = process.env.NEXT_PUBLIC_AMAZON_AFFILIATE_TAG ?? "familytravel0a-20";
+const BABYQUIP_URL = process.env.NEXT_PUBLIC_BABYQUIP_URL ?? "https://www.babyquip.com?a=b33db96";
 
-// Items where renting makes more sense than buying/packing
 const RENTABLE = /crib|stroller|car\s*seat|high\s*chair|highchair|booster\s*seat|play\s*yard|playpen|pack.n.play|pack\s*n\s*play|bassinet|bouncer|baby\s*swing|portable\s*(crib|seat|high)/i;
 
 function BabyQuipRentButton({ name }) {
@@ -90,8 +90,8 @@ function PackingItem({ item, onToggle }) {
     <div
       onClick={() => onToggle(item.id)}
       style={{
-        display:"flex",alignItems:"flex-start",gap:10,padding:"8px 10px",
-        borderRadius:9,marginBottom:4,cursor:"pointer",
+        display:"flex",alignItems:"center",gap:8,padding:"5px 8px",
+        borderRadius:8,marginBottom:3,cursor:"pointer",
         background: item.packed ? "#F0FAF4" : item.essential ? "#FFF9F0" : "#fff",
         border: `1.5px solid ${item.packed ? "#2D8A4E44" : item.essential ? "#F59E0B44" : "#F0EDE8"}`,
         transition:"background .15s,border-color .15s",
@@ -100,37 +100,39 @@ function PackingItem({ item, onToggle }) {
     >
       {/* Checkbox */}
       <div style={{
-        width:18,height:18,borderRadius:5,flexShrink:0,marginTop:1,
+        width:16,height:16,borderRadius:4,flexShrink:0,
         border:`2px solid ${item.packed ? "#2D8A4E" : "#D1CCC6"}`,
         background:item.packed?"#2D8A4E":"transparent",
         display:"flex",alignItems:"center",justifyContent:"center",
       }}>
-        {item.packed && <span style={{color:"#fff",fontSize:11,fontWeight:800,lineHeight:1}}>✓</span>}
+        {item.packed && <span style={{color:"#fff",fontSize:10,fontWeight:800,lineHeight:1}}>✓</span>}
       </div>
 
-      {/* Content */}
-      <div style={{ flex:1,minWidth:0 }}>
-        <div style={{ display:"flex",alignItems:"center",flexWrap:"wrap",gap:4 }}>
-          <span style={{
-            fontSize:13,fontWeight:item.packed?600:700,
-            color:item.packed?"#8A9BA5":"#1C2B33",
-            textDecoration:item.packed?"line-through":"none",
-          }}>
-            {item.name}
-          </span>
-          {item.essential && !item.packed && (
-            <span style={{ fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"#B45309",background:"#FFF3E0",padding:"1px 5px",borderRadius:4 }}>Essential</span>
-          )}
-          {item.quantity_note && (
-            <span style={{ fontSize:10,color:"#8A9BA5",fontWeight:600 }}>{item.quantity_note}</span>
-          )}
-          {!item.packed && <AffiliateButton searchQuery={item.affiliate_search} />}
-          {!item.packed && <BabyQuipRentButton name={item.name} />}
+      {/* Name + essential badge */}
+      <span style={{
+        fontSize:12,fontWeight:item.packed?600:700,flexShrink:0,
+        color:item.packed?"#8A9BA5":"#1C2B33",
+        textDecoration:item.packed?"line-through":"none",
+      }}>{item.name}</span>
+      {item.essential && !item.packed && (
+        <span style={{ fontSize:8,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"#B45309",background:"#FFF3E0",padding:"1px 4px",borderRadius:3,flexShrink:0 }}>Essential</span>
+      )}
+      {item.quantity_note && !item.packed && (
+        <span style={{ fontSize:9,color:"#8A9BA5",fontWeight:600,flexShrink:0 }}>{item.quantity_note}</span>
+      )}
+
+      {/* Notes inline — truncated, full text on hover */}
+      {item.notes && !item.packed && (
+        <span title={item.notes} style={{ fontSize:10,color:"#B0BAC2",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{item.notes}</span>
+      )}
+
+      {/* Buttons pushed to right */}
+      {!item.packed && (
+        <div style={{ display:"flex",gap:3,marginLeft:"auto",flexShrink:0 }} onClick={e=>e.stopPropagation()}>
+          <AffiliateButton searchQuery={item.affiliate_search} />
+          <BabyQuipRentButton name={item.name} />
         </div>
-        {item.notes && !item.packed && (
-          <p style={{ fontSize:11,color:"#8A9BA5",margin:"2px 0 0",lineHeight:1.4 }}>{item.notes}</p>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -173,19 +175,31 @@ function CategorySection({ category, items, onToggle, collapsed, onToggleCollaps
 
 export default function PackingList({ profile, activities, destination, savedItems, savedGenerated, onItemsChange, onGeneratedChange }) {
   const [items, setItems] = useState(savedItems ?? []);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [generated, setGenerated] = useState(savedGenerated ?? false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [filter, setFilter] = useState("all"); // 'all' | 'unpacked' | 'essential'
 
+  // Generate list immediately on mount from static master list
+  useEffect(() => {
+    if (savedItems?.length) return; // already have saved items — don't overwrite
+    const filtered = filterPackingList(profile, destination, activities);
+    setItems(filtered);
+    onGeneratedChange?.(true);
+  }, []);
+
   // Sync state up to parent so it survives step navigation
   useEffect(() => { onItemsChange?.(items); }, [items]);
-  useEffect(() => { onGeneratedChange?.(generated); }, [generated]);
 
-  const generateList = async () => {
-    setLoading(true);
-    setError(null);
+  const refilter = () => {
+    const filtered = filterPackingList(profile, destination, activities);
+    setItems(filtered);
+    setFilter("all");
+  };
+
+  const customizeWithAI = async () => {
+    setAiLoading(true);
+    setAiError(null);
     try {
       const res = await fetch("/api/generate-packing-list", {
         method: "POST",
@@ -195,11 +209,10 @@ export default function PackingList({ profile, activities, destination, savedIte
       if (!res.ok) { const e = await res.json(); throw new Error(e.detail ?? e.error ?? "Generation failed"); }
       const data = await res.json();
       setItems((data.items ?? []).map(i => ({ ...i, packed: false })));
-      setGenerated(true);
     } catch (e) {
-      setError(e.message);
+      setAiError(e.message);
     } finally {
-      setLoading(false);
+      setAiLoading(false);
     }
   };
 
@@ -233,91 +246,71 @@ export default function PackingList({ profile, activities, destination, savedIte
         {destination && <p style={{ color:"#8A9BA5",fontSize:13,marginTop:4 }}>For your {destination} trip</p>}
       </div>
 
-      {!generated && !loading && (
-        <div style={{ textAlign:"center",padding:"32px 0" }}>
-          <p style={{ color:"#8A9BA5",fontSize:14,marginBottom:16 }}>
-            Generate a personalized packing list based on your family profile, destination, and planned activities.
-          </p>
-          <button onClick={generateList} style={{
-            padding:"12px 32px",borderRadius:12,border:"none",
-            background:"linear-gradient(135deg,#E8643A,#F09A3A)",
-            color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",
-            boxShadow:"0 6px 20px rgba(232,100,58,.3)",
-          }}>
-            ✨ Generate Packing List
-          </button>
-          {error && <p style={{ color:"#E8643A",fontSize:12,marginTop:10 }}>{error}</p>}
+      {/* Progress bar */}
+      <div style={{ background:"#fff",borderRadius:12,padding:"12px 16px",marginBottom:16,border:"1px solid #F0EDE8" }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6 }}>
+          <span style={{ fontSize:13,fontWeight:800,color:"#1C2B33" }}>Packing Progress</span>
+          <span style={{ fontSize:13,fontWeight:700,color:pct===100?"#2D8A4E":"#8A9BA5" }}>{totalPacked}/{items.length} packed {pct===100?"🎉":""}</span>
         </div>
-      )}
-
-      {loading && (
-        <div style={{ textAlign:"center",padding:"48px 0",color:"#8A9BA5" }}>
-          <div style={{ fontSize:32,marginBottom:12,animation:"spin 1s linear infinite" }}>⏳</div>
-          <p style={{ fontWeight:700 }}>Building your packing list…</p>
-          <p style={{ fontSize:12,marginTop:4 }}>Claude is customizing this for your family</p>
+        <div style={{ height:8,borderRadius:4,background:"#F0EDE8",overflow:"hidden" }}>
+          <div style={{ width:`${pct}%`,height:"100%",background:"linear-gradient(90deg,#2D8A4E,#0B7A8E)",borderRadius:4,transition:"width .4s" }} />
         </div>
-      )}
+      </div>
 
-      {generated && !loading && (
-        <>
-          {/* Progress bar */}
-          <div style={{ background:"#fff",borderRadius:12,padding:"12px 16px",marginBottom:16,border:"1px solid #F0EDE8" }}>
-            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6 }}>
-              <span style={{ fontSize:13,fontWeight:800,color:"#1C2B33" }}>Packing Progress</span>
-              <span style={{ fontSize:13,fontWeight:700,color:pct===100?"#2D8A4E":"#8A9BA5" }}>{totalPacked}/{items.length} packed {pct===100?"🎉":""}</span>
-            </div>
-            <div style={{ height:8,borderRadius:4,background:"#F0EDE8",overflow:"hidden" }}>
-              <div style={{ width:`${pct}%`,height:"100%",background:"linear-gradient(90deg,#2D8A4E,#0B7A8E)",borderRadius:4,transition:"width .4s" }} />
-            </div>
-          </div>
+      {/* Filter tabs + action buttons */}
+      <div style={{ display:"flex",gap:6,marginBottom:16,flexWrap:"wrap",alignItems:"center" }}>
+        {[["all","All Items"],["unpacked","Unpacked"],["essential","Essentials"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setFilter(v)} style={{
+            padding:"6px 14px",borderRadius:20,border:"2px solid"+(filter===v?"#0B7A8E":"#F0EDE8"),
+            background:filter===v?"#E6F6F8":"transparent",color:filter===v?"#0B7A8E":"#8A9BA5",
+            fontSize:12,fontWeight:700,cursor:"pointer",
+          }}>{l}</button>
+        ))}
+        <button onClick={refilter} style={{
+          padding:"6px 14px",borderRadius:20,border:"2px solid #F0EDE8",
+          background:"transparent",color:"#8A9BA5",fontSize:12,fontWeight:700,cursor:"pointer",
+        }}>↻ Refresh</button>
+        <button onClick={customizeWithAI} disabled={aiLoading} style={{
+          marginLeft:"auto",padding:"6px 14px",borderRadius:20,
+          border:"2px solid #7C3AED",background:aiLoading?"#F5F3FF":"transparent",
+          color:"#7C3AED",fontSize:12,fontWeight:700,cursor:aiLoading?"wait":"pointer",
+          whiteSpace:"nowrap",
+        }}>
+          {aiLoading ? "Generating…" : "✨ Customize with AI"}
+        </button>
+      </div>
+      {aiError && <p style={{ color:"#E8643A",fontSize:12,marginBottom:10 }}>{aiError}</p>}
 
-          {/* Filter tabs */}
-          <div style={{ display:"flex",gap:6,marginBottom:16 }}>
-            {[["all","All Items"],["unpacked","Unpacked"],["essential","Essentials"]].map(([v,l])=>(
-              <button key={v} onClick={()=>setFilter(v)} style={{
-                padding:"6px 14px",borderRadius:20,border:"2px solid"+(filter===v?"#0B7A8E":"#F0EDE8"),
-                background:filter===v?"#E6F6F8":"transparent",color:filter===v?"#0B7A8E":"#8A9BA5",
-                fontSize:12,fontWeight:700,cursor:"pointer",
-              }}>{l}</button>
-            ))}
-            <button onClick={generateList} style={{
-              marginLeft:"auto",padding:"6px 14px",borderRadius:20,border:"2px solid #F0EDE8",
-              background:"transparent",color:"#8A9BA5",fontSize:12,fontWeight:700,cursor:"pointer",
-            }}>↻ Regenerate</button>
-          </div>
+      {/* BabyQuip banner — shown when baby gear items exist */}
+      {byCategory['baby_gear']?.length > 0 && <BabyQuipBanner />}
 
-          {/* BabyQuip banner — shown when baby gear items exist */}
-          {byCategory['baby_gear']?.length > 0 && <BabyQuipBanner />}
+      {/* Categories */}
+      <div style={{ background:"#fff",borderRadius:16,padding:"12px 14px",border:"1px solid #F0EDE8" }}>
+        {CATEGORY_ORDER.filter(cat => byCategory[cat]?.length).map(cat => (
+          <CategorySection
+            key={cat}
+            category={cat}
+            items={byCategory[cat]}
+            onToggle={toggleItem}
+            collapsed={!!collapsed[cat]}
+            onToggleCollapse={() => toggleCollapse(cat)}
+          />
+        ))}
+        {Object.keys(byCategory).filter(c => !CATEGORY_ORDER.includes(c)).map(cat => (
+          <CategorySection
+            key={cat}
+            category={cat}
+            items={byCategory[cat]}
+            onToggle={toggleItem}
+            collapsed={!!collapsed[cat]}
+            onToggleCollapse={() => toggleCollapse(cat)}
+          />
+        ))}
+      </div>
 
-          {/* Categories */}
-          <div style={{ background:"#fff",borderRadius:16,padding:"12px 14px",border:"1px solid #F0EDE8" }}>
-            {CATEGORY_ORDER.filter(cat => byCategory[cat]?.length).map(cat => (
-              <CategorySection
-                key={cat}
-                category={cat}
-                items={byCategory[cat]}
-                onToggle={toggleItem}
-                collapsed={!!collapsed[cat]}
-                onToggleCollapse={() => toggleCollapse(cat)}
-              />
-            ))}
-            {Object.keys(byCategory).filter(c => !CATEGORY_ORDER.includes(c)).map(cat => (
-              <CategorySection
-                key={cat}
-                category={cat}
-                items={byCategory[cat]}
-                onToggle={toggleItem}
-                collapsed={!!collapsed[cat]}
-                onToggleCollapse={() => toggleCollapse(cat)}
-              />
-            ))}
-          </div>
-
-          <p style={{ fontSize:10,color:"#8A9BA5",textAlign:"center",marginTop:12,lineHeight:1.5 }}>
-            🛒 Buy &amp; Rent links are affiliate links (Amazon, BabyQuip) — supports this site at no extra cost to you.
-          </p>
-        </>
-      )}
+      <p style={{ fontSize:10,color:"#8A9BA5",textAlign:"center",marginTop:12,lineHeight:1.5 }}>
+        🛒 Buy &amp; Rent links are affiliate links (Amazon, BabyQuip) — supports this site at no extra cost to you.
+      </p>
     </div>
   );
 }
