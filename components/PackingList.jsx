@@ -219,6 +219,26 @@ export default function PackingList({ profile, activities, destination, savedIte
   const toggleItem = (id) => setItems(prev => prev.map(i => i.id === id ? { ...i, packed: !i.packed } : i));
   const toggleCollapse = (cat) => setCollapsed(prev => ({ ...prev, [cat]: !prev[cat] }));
 
+  // 3-state bulk check: None → Essentials → All → None
+  const allPacked = items.length > 0 && items.every(i => i.packed);
+  const essentialsPacked = !allPacked && items.filter(i => i.essential).length > 0 &&
+    items.filter(i => i.essential).every(i => i.packed) &&
+    items.filter(i => !i.essential).every(i => !i.packed);
+  const nonePacked = items.every(i => !i.packed);
+  const cyclePacked = () => {
+    if (nonePacked || (!allPacked && !essentialsPacked)) {
+      // → Essentials only
+      setItems(prev => prev.map(i => ({ ...i, packed: !!i.essential })));
+    } else if (essentialsPacked) {
+      // → All packed
+      setItems(prev => prev.map(i => ({ ...i, packed: true })));
+    } else {
+      // All packed → None
+      setItems(prev => prev.map(i => ({ ...i, packed: false })));
+    }
+  };
+  const cyclePackedLabel = allPacked ? "☑ Uncheck All" : essentialsPacked ? "☑ Check All" : "⭐ Essentials";
+
   // Group by category
   const byCategory = useMemo(() => {
     const filtered = filter === "unpacked" ? items.filter(i => !i.packed)
@@ -266,6 +286,13 @@ export default function PackingList({ profile, activities, destination, savedIte
             fontSize:12,fontWeight:700,cursor:"pointer",
           }}>{l}</button>
         ))}
+        <button onClick={cyclePacked} style={{
+          padding:"6px 14px",borderRadius:20,
+          border:`2px solid ${allPacked?"#2D8A4E":essentialsPacked?"#F59E0B":"#F0EDE8"}`,
+          background:allPacked?"#F0FAF4":essentialsPacked?"#FFF9F0":"transparent",
+          color:allPacked?"#2D8A4E":essentialsPacked?"#B45309":"#8A9BA5",
+          fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",
+        }}>{cyclePackedLabel}</button>
         <button onClick={refilter} style={{
           padding:"6px 14px",borderRadius:20,border:"2px solid #F0EDE8",
           background:"transparent",color:"#8A9BA5",fontSize:12,fontWeight:700,cursor:"pointer",

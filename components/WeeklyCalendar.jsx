@@ -28,6 +28,12 @@ const CAT_LABELS = {
   under_1h: "<1h",
 };
 
+const ENERGY_BY_TYPE = {
+  attraction:"🔥", entertainment:"🔥",
+  outdoors:"⚡", hike:"⚡",
+  museum:"😌", culture:"😌", park:"😌", food:"😌",
+};
+
 const PX_PER_MIN = 0.8;
 const SNAP_MINS  = 15;
 
@@ -331,11 +337,14 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
             <div style={{ flex:1, padding:"3px 5px 0", overflow:"hidden", minHeight:0 }}>
               <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:2 }}>
                 <div style={{ minWidth:0, flex:1 }}>
-                  {/* Title + category badge */}
+                  {/* Title + category badge + energy icon */}
                   <div style={{ display:"flex",alignItems:"center",gap:3,flexWrap:"wrap" }}>
                     <span style={{ fontSize:9,fontWeight:800,color:labelColor,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.4 }}>
                       {titleEmoji + slot.title}
                     </span>
+                    {ENERGY_BY_TYPE[slot.type] && !isFixed && !isNap && (
+                      <span style={{ fontSize:9,lineHeight:1.4,flexShrink:0 }} title={`Energy: ${slot.type}`}>{ENERGY_BY_TYPE[slot.type]}</span>
+                    )}
                     {catLabel && blockH > 38 && (
                       <span style={{ fontSize:8,fontWeight:700,color:labelColor,background:isNap?"#E5E7EB":c.bg,padding:"0 4px",borderRadius:3,whiteSpace:"nowrap",flexShrink:0,lineHeight:"14px",border:`1px solid ${isNap?"#D1D5DB":c.color+"33"}` }}>
                         {catLabel}

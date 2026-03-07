@@ -436,7 +436,9 @@ function ActivitiesStep({profile,activities,setActivities,selectedIds,setSelecte
     setSelectedIds(prefIds.size>0?prefIds:new Set(list.map(a=>a.id)));
   }catch(e){console.error(e);setError("Generation failed: "+e.message);if(!activities.length){setActivities(SAMPLE_ACTIVITIES);setSelectedIds(new Set(SAMPLE_ACTIVITIES.map(a=>a.id)));}}finally{setLoading(false);}};
 
-  useEffect(()=>{if(!activities.length){setActivities(SAMPLE_ACTIVITIES);setSelectedIds(new Set(SAMPLE_ACTIVITIES.map(a=>a.id)));}},[]);
+  // Auto-generate for the chosen destination on first visit to this step
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(()=>{if(!activities.length){generate();}},[]);
   const toggle=id=>{const n=new Set(selectedIds);n.has(id)?n.delete(id):n.add(id);setSelectedIds(n);};
 
   // Sort: preferred first, then non-preferred
