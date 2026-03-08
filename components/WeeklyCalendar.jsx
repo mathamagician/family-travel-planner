@@ -56,6 +56,14 @@ function formatTime12(t) {
 function formatDateShort(ds) {
   return new Date(ds + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
+function formatTimeShort(t) {
+  const [h, m] = t.split(":").map(Number);
+  return (h % 12 || 12) + (m > 0 ? `:${String(m).padStart(2, "0")}` : "") + (h >= 12 ? "pm" : "am");
+}
+
+// Height of the desktop day header card (approx) — used to offset the time gutter
+const DESKTOP_HEADER_H = 78;
+
 function snap(mins) {
   return Math.round(mins / SNAP_MINS) * SNAP_MINS;
 }
@@ -69,6 +77,49 @@ function getMockWeather(dateStr) {
   const month = parseInt(dateStr.split("-")[1]);
   const base = {1:38,2:42,3:52,4:62,5:72,6:82,7:88,8:86,9:78,10:66,11:52,12:40}[month]||70;
   return { icon: conditions[seed % conditions.length], highF: base + (seed % 15) - 7 };
+}
+
+// ── Time Gutter ────────────────────────────────────────────────────────────
+// Sticky left column showing hour labels aligned to the day columns.
+// topOffset = pixel height of the day header card so labels align with column body.
+
+function TimeGutter({ wakeMins, bedMins, topOffset }) {
+  const totalMins = bedMins - wakeMins;
+  const labels = [];
+  for (let m = 0; m < totalMins; m += 60) {
+    labels.push(
+      <div key={m} style={{
+        position: "absolute",
+        top: topOffset + m * PX_PER_MIN,
+        right: 4,
+        fontSize: 9,
+        fontWeight: 700,
+        color: "#8A9BA5",
+        lineHeight: 1,
+        whiteSpace: "nowrap",
+        transform: "translateY(-50%)",
+        pointerEvents: "none",
+      }}>
+        {formatTimeShort(minsToTime(wakeMins + m))}
+      </div>
+    );
+  }
+  return (
+    <div style={{
+      position: "sticky",
+      left: 0,
+      zIndex: 2,
+      flexShrink: 0,
+      width: 36,
+      height: topOffset + totalMins * PX_PER_MIN,
+      background: "#fff",
+      borderRight: "1px solid #E0DCD8",
+    }}>
+      <div style={{ position: "relative", height: "100%" }}>
+        {labels}
+      </div>
+    </div>
+  );
 }
 
 // ── Block Notes Modal ──────────────────────────────────────────────────────
@@ -243,18 +294,15 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
     setDragState({ active: false });
   };
 
-  // Hour grid lines
+  // Hour + half-hour grid lines (labels live in TimeGutter, not here)
   const hourLines = [];
-  for (let m = 0; m <= totalMins; m += 60) {
-    const timeStr = minsToTime(wakeMins + m);
+  for (let m = 0; m <= totalMins; m += 30) {
     hourLines.push(
-      <div key={m} style={{ position:"absolute",top:m*PX_PER_MIN,left:0,right:0,borderTop:`1px ${m%60===0?"solid #E8E4DF":"dashed #F0EDE8"}`,pointerEvents:"none" }}>
-        {m % 60 === 0 && m < totalMins && (
-          <span style={{ position:"absolute",top:-9,left:2,fontSize:9,fontWeight:700,color:"#8A9BA5",lineHeight:1 }}>
-            {formatTime12(timeStr)}
-          </span>
-        )}
-      </div>
+      <div key={m} style={{
+        position: "absolute", top: m * PX_PER_MIN, left: 0, right: 0,
+        borderTop: `1px ${m % 60 === 0 ? "solid #E0DCD8" : "dashed #ECEAE6"}`,
+        pointerEvents: "none",
+      }} />
     );
   }
 
@@ -717,24 +765,29 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
             );
           })()}
 
-          {/* Full-width day column */}
+          {/* Full-width day column with time gutter */}
           {days[mobileDay] && (
-            <DayColumn
-              day={days[mobileDay]}
-              dayIndex={mobileDay}
-              wakeMins={wakeMins}
-              bedMins={bedMins}
-              onMoveBlock={moveBlock}
-              onRemoveBlock={removeBlock}
-              onAddBlock={(di, st) => setShowAddModal({ dayIndex: di, startTime: st })}
-              onDropFromSidebar={dropFromSidebar}
-              onResizeStart={handleResizeStart}
-              onBlockClick={handleBlockClick}
-              dragState={dragState}
-              setDragState={setDragState}
-              activeResizeHandleRef={activeResizeHandleRef}
-              mobile={true}
-            />
+            <div style={{ display:"flex" }}>
+              <TimeGutter wakeMins={wakeMins} bedMins={bedMins} topOffset={0} />
+              <div style={{ flex:1, minWidth:0 }}>
+                <DayColumn
+                  day={days[mobileDay]}
+                  dayIndex={mobileDay}
+                  wakeMins={wakeMins}
+                  bedMins={bedMins}
+                  onMoveBlock={moveBlock}
+                  onRemoveBlock={removeBlock}
+                  onAddBlock={(di, st) => setShowAddModal({ dayIndex: di, startTime: st })}
+                  onDropFromSidebar={dropFromSidebar}
+                  onResizeStart={handleResizeStart}
+                  onBlockClick={handleBlockClick}
+                  dragState={dragState}
+                  setDragState={setDragState}
+                  activeResizeHandleRef={activeResizeHandleRef}
+                  mobile={true}
+                />
+              </div>
+            </div>
           )}
 
           {/* Unscheduled activities toggle */}
@@ -800,6 +853,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
                   </div>
                 )}
                 <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:8 }}>
+                  <TimeGutter wakeMins={wakeMins} bedMins={bedMins} topOffset={DESKTOP_HEADER_H} />
                   {week.map((day) => {
                     const isWE = (() => { const d = new Date(day.date + "T00:00:00"); return d.getDay() === 0 || d.getDay() === 6; })();
                     return (
