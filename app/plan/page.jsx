@@ -1,8 +1,11 @@
 import FamilyTravelPlanner from "../../components/FamilyTravelPlanner";
 
 export const metadata = {
-  title: "Plan Your Trip — Family Travel Planner",
-  description: "Build your personalized family itinerary with AI.",
+  title: "Plan Your Trip",
+  description:
+    "Build a personalized family itinerary with AI — activities, schedules, and packing lists built around your kids' nap times.",
+  alternates: { canonical: "/plan" },
+  robots: { index: false },
 };
 
 export default function PlanPage() {

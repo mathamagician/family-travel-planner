@@ -156,10 +156,16 @@ function CategorySection({ category, items, onToggle, collapsed, onToggleCollaps
           <span style={{ fontSize: 10, color: "#8A9BA5" }}>{collapsed ? "▸" : "▾"}</span>
         </button>
 
-        {/* Inline chips — visible when expanded */}
+        {/* Inline chips + affiliate links — visible when expanded */}
         {!collapsed && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, flex: 1, minWidth: 0, alignItems: "center" }}>
             {items.map(item => <PackingChip key={item.id} item={item} onToggle={onToggle} />)}
+            {items.filter(i => !i.packed && i.affiliate_search).slice(0, 3).map(i => (
+              <AffiliateButton key={`aff-${i.id}`} searchQuery={i.affiliate_search} />
+            ))}
+            {items.filter(i => !i.packed && RENTABLE.test(i.name)).slice(0, 2).map(i => (
+              <BabyQuipRentButton key={`rent-${i.id}`} name={i.name} />
+            ))}
           </div>
         )}
 
@@ -172,18 +178,6 @@ function CategorySection({ category, items, onToggle, collapsed, onToggleCollaps
           </div>
         )}
       </div>
-
-      {/* Affiliate links row — shown when expanded and items have affiliates */}
-      {!collapsed && items.some(i => !i.packed && (i.affiliate_search || RENTABLE.test(i.name))) && (
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4, paddingLeft: 24 }}>
-          {items.filter(i => !i.packed && i.affiliate_search).slice(0, 3).map(i => (
-            <AffiliateButton key={i.id} searchQuery={i.affiliate_search} />
-          ))}
-          {items.filter(i => !i.packed && RENTABLE.test(i.name)).slice(0, 2).map(i => (
-            <BabyQuipRentButton key={i.id} name={i.name} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

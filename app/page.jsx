@@ -1,13 +1,30 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Family Travel Planner — AI Itineraries Built Around Nap Time",
-  description: "The only travel planner that schedules around your kids' nap times. AI-powered day-by-day itineraries, drag-and-drop scheduling, and a smart packing list — free.",
-  openGraph: {
-    title: "Family Travel Planner — AI Itineraries Built Around Nap Time",
-    description: "AI-powered travel planning built around your kids' ages, nap schedules, and interests. Get a personalized itinerary in minutes.",
-    type: "website",
-  },
+  title: "Toddler Trip — AI Family Travel Planner Built Around Nap Time",
+  description:
+    "The only travel planner that schedules around your kids' nap times. AI-powered day-by-day itineraries, drag-and-drop scheduling, and a smart packing list — free.",
+  alternates: { canonical: "/" },
+};
+
+/** JSON-LD structured data for the landing page */
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "Toddler Trip",
+  url: "https://www.toddlertrip.com",
+  applicationCategory: "TravelApplication",
+  operatingSystem: "Any",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  description:
+    "AI-powered family travel planner that builds day-by-day itineraries around kids' nap schedules, ages, and interests.",
+  featureList: [
+    "Nap-aware scheduling",
+    "AI-curated age-appropriate activities",
+    "Drag-and-drop weekly calendar",
+    "Smart packing list with affiliate links",
+    "Energy-balanced day planning",
+  ],
 };
 
 const INK    = "#1C2B33";
@@ -53,6 +70,10 @@ const STEPS = [
 export default function LandingPage() {
   return (
     <div style={{ fontFamily: "'Nunito', sans-serif", background: CLOUD, minHeight: "100vh", color: INK }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Nunito:wght@400;600;700;800&display=swap');

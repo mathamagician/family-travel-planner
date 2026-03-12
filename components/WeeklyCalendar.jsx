@@ -548,12 +548,12 @@ function TripIntensityMeter({ tripIntensity, days }) {
       <div style={{ position: "relative", width: 80, height: 44 }}>
         {/* Arc background */}
         <svg viewBox="0 0 80 44" style={{ width: 80, height: 44 }}>
-          {/* Green zone */}
-          <path d="M 8 40 A 32 32 0 0 1 28 10" fill="none" stroke="#16A34A" strokeWidth="6" strokeLinecap="round" />
-          {/* Yellow zone */}
-          <path d="M 28 10 A 32 32 0 0 1 52 10" fill="none" stroke="#D97706" strokeWidth="6" strokeLinecap="round" />
-          {/* Red zone */}
-          <path d="M 52 10 A 32 32 0 0 1 72 40" fill="none" stroke="#DC2626" strokeWidth="6" strokeLinecap="round" />
+          {/* Green zone: 0–40% of arc (left side) */}
+          <path d="M 8 40 A 32 32 0 0 1 18.3 14.5" fill="none" stroke="#16A34A" strokeWidth="6" strokeLinecap="round" />
+          {/* Yellow/orange zone: 40–75% of arc (wide middle) */}
+          <path d="M 18.3 14.5 A 32 32 0 0 1 58.5 11.5" fill="none" stroke="#D97706" strokeWidth="6" strokeLinecap="round" />
+          {/* Red zone: 75–100% of arc (right side, narrow) */}
+          <path d="M 58.5 11.5 A 32 32 0 0 1 72 40" fill="none" stroke="#DC2626" strokeWidth="6" strokeLinecap="round" />
           {/* Needle */}
           <line
             x1="40" y1="40"

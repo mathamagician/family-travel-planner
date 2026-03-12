@@ -5,8 +5,9 @@
    All business logic and UI lives in the individual modules.
    ────────────────────────────────────────────────────────────────────────── */
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DEFAULT_PROFILE, GLOBAL_CSS } from "./shared/config";
+import { trackEvent } from "./GoogleAnalytics";
 
 // Auth & persistence components
 import { useSupabase } from "./Providers";
@@ -74,23 +75,73 @@ function ShareBar({ shareToken, onCopy, copied }) {
   );
 }
 
+/* ─── Session Draft (survives refresh) ─── */
+
+const DRAFT_KEY = "toddlertrip_draft";
+
+function saveDraft(data) {
+  try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch {}
+}
+
+function loadDraft() {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    // Restore Set from array
+    if (d.selectedIds) d.selectedIds = new Set(d.selectedIds);
+    return d;
+  } catch { return null; }
+}
+
+function clearDraft() {
+  try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
+}
+
 /* ─── Main Orchestrator ─── */
 
 export default function FamilyTravelPlanner() {
-  const [step, setStep] = useState(0);
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
-  const [activities, setActivities] = useState([]);
-  const [selectedIds, setSelectedIds] = useState(new Set());
+  // Try restoring from session draft
+  const draft = typeof window !== "undefined" ? loadDraft() : null;
+
+  const [step, setStep] = useState(draft?.step ?? 0);
+  const [profile, setProfile] = useState(draft?.profile ?? DEFAULT_PROFILE);
+  const [activities, setActivities] = useState(draft?.activities ?? []);
+  const [selectedIds, setSelectedIds] = useState(draft?.selectedIds ?? new Set());
   const [itinerary, setItinerary] = useState(null);
   const [shareToken, setShareToken] = useState(null);
   const [shareCopied, setShareCopied] = useState(false);
-  const [packingItems, setPackingItems] = useState([]);
-  const [packingGenerated, setPackingGenerated] = useState(false);
+  const [packingItems, setPackingItems] = useState(draft?.packingItems ?? []);
+  const [packingGenerated, setPackingGenerated] = useState(draft?.packingGenerated ?? false);
+
+  // Re-generate itinerary from restored draft (can't serialize functions/computed state)
+  useEffect(() => {
+    if (draft && draft.step >= 2 && activities.length > 0) {
+      const selected = activities.filter(a => selectedIds.has(a.id));
+      if (selected.length > 0) setItinerary(generateItinerary(profile, selected));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-save draft whenever user is past step 0
+  useEffect(() => {
+    if (step >= 1) {
+      saveDraft({
+        step,
+        profile,
+        activities,
+        selectedIds: [...selectedIds],
+        packingItems,
+        packingGenerated,
+      });
+    }
+  }, [step, profile, activities, selectedIds, packingItems, packingGenerated]);
 
   // Compute itinerary when moving to step 2
   const goToItinerary = () => {
     const selected = activities.filter(a => selectedIds.has(a.id));
     setItinerary(generateItinerary(profile, selected));
+    trackEvent("build_itinerary", "funnel", profile.destination, selected.length);
     setStep(2);
   };
 
@@ -145,7 +196,7 @@ export default function FamilyTravelPlanner() {
         {/* Step 0: Family Profile */}
         {step === 0 && <>
           <MyTripsPanel onLoadTrip={handleLoadTrip} />
-          <FamilyModule profile={profile} setProfile={setProfile} onNext={() => setStep(1)} />
+          <FamilyModule profile={profile} setProfile={setProfile} onNext={() => { trackEvent("complete_profile", "funnel", profile.destination); setStep(1); }} />
         </>}
 
         {/* Step 1: Activities */}
@@ -172,7 +223,7 @@ export default function FamilyTravelPlanner() {
             onProfileChange={setProfile}
             onBack={() => setStep(0)}
             onBackToActivities={() => setStep(1)}
-            onNextStep={() => setStep(3)}
+            onNextStep={() => { trackEvent("complete_itinerary", "funnel", profile.destination); setStep(3); }}
             SaveTripButtonComponent={SaveBtn}
           />
           <ShareBar shareToken={shareToken} onCopy={handleShareCopy} copied={shareCopied} />
