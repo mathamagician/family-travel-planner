@@ -80,7 +80,7 @@ export const OUTDOOR_PREFS = [
   { key: "beach_water",       label: "🏖️ Beach" },
   { key: "parks_playgrounds", label: "🌳 Parks" },
   { key: "hiking_nature",     label: "🥾 Hikes" },
-  { key: "playgrounds_play",  label: "🛝 Playgrounds" },
+  { key: "playgrounds_play",  label: "🎠 Playgrounds" },
 ];
 
 export const INDOOR_PREFS = [

@@ -68,8 +68,12 @@ function TimeGutter({ wakeMins, bedMins, topOffset }) {
 
 function BlockNotesModal({ block, onSave, onClose }) {
   const [notes, setNotes] = useState(block.notes ?? "");
+  const [startTime, setStartTime] = useState(block.start ?? "09:00");
+  const [duration, setDuration] = useState(block.duration_mins ?? 60);
   const c = TYPE_CONFIG[block.type] || TYPE_CONFIG.custom;
   const catLabel = block.duration_category ? CAT_LABELS[block.duration_category] : null;
+
+  const inputStyle = { padding:"5px 8px", borderRadius:7, border:"1.5px solid #E8E4DF", fontSize:12, fontWeight:600, background:"#fff" };
 
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(28,43,51,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,padding:20 }}>
@@ -82,30 +86,41 @@ function BlockNotesModal({ block, onSave, onClose }) {
           <button onClick={onClose} style={{ background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#8A9BA5",lineHeight:1 }}>×</button>
         </div>
 
-        <div style={{ display:"flex",gap:8,marginBottom:10,flexWrap:"wrap" }}>
-          <span style={{ fontSize:11,color:"#8A9BA5",fontWeight:600 }}>
-            {formatTime12(block.start)} · {block.duration_mins}m
+        {catLabel && (
+          <span style={{ fontSize:10,fontWeight:700,color:c.color,background:c.bg,padding:"1px 6px",borderRadius:4,display:"inline-block",marginBottom:8 }}>
+            {catLabel}
           </span>
-          {catLabel && (
-            <span style={{ fontSize:10,fontWeight:700,color:c.color,background:c.bg,padding:"1px 6px",borderRadius:4 }}>
-              {catLabel}
-            </span>
-          )}
+        )}
+
+        {/* Start time + duration — editable */}
+        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12 }}>
+          <div>
+            <label style={{ display:"block",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"#8A9BA5",marginBottom:4 }}>Start Time</label>
+            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={{ ...inputStyle, width:"100%", boxSizing:"border-box" }} />
+          </div>
+          <div>
+            <label style={{ display:"block",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"#8A9BA5",marginBottom:4 }}>Duration</label>
+            <select value={duration} onChange={e => setDuration(Number(e.target.value))} style={{ ...inputStyle, width:"100%", boxSizing:"border-box" }}>
+              {[15,30,45,60,90,120,150,180,240,300,360,480].map(d => (
+                <option key={d} value={d}>{d < 60 ? d+"m" : Math.floor(d/60)+"h"+(d%60?` ${d%60}m`:"")}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {block.location_name && (
-          <p style={{ fontSize:11,color:"#8A9BA5",marginBottom:14,display:"flex",alignItems:"center",gap:4 }}>
+          <p style={{ fontSize:11,color:"#8A9BA5",marginBottom:10,display:"flex",alignItems:"center",gap:4 }}>
             📍 <span style={{ overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{block.location_name}</span>
           </p>
         )}
 
-        <label style={{ display:"block",fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8A9BA5",marginBottom:6 }}>
+        <label style={{ display:"block",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"#8A9BA5",marginBottom:4 }}>
           Notes
         </label>
         <textarea
           value={notes}
           onChange={e => setNotes(e.target.value)}
-          rows={4}
+          rows={3}
           autoFocus
           placeholder="Add reminders, tips, or anything useful…"
           style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:"2px solid #F0EDE8",fontSize:13,fontWeight:600,boxSizing:"border-box",resize:"vertical",fontFamily:"'Nunito',sans-serif",lineHeight:1.5 }}
@@ -113,10 +128,10 @@ function BlockNotesModal({ block, onSave, onClose }) {
 
         <div style={{ display:"flex",gap:8,marginTop:14 }}>
           <button
-            onClick={() => onSave(notes)}
+            onClick={() => onSave({ notes, start: startTime, duration_mins: duration })}
             style={{ flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"linear-gradient(135deg,#E8643A,#F09A3A)",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer" }}
           >
-            Save Notes
+            Save
           </button>
           <button onClick={onClose} style={{ padding:"11px 18px",borderRadius:10,border:"2px solid #F0EDE8",background:"transparent",color:"#8A9BA5",fontSize:13,fontWeight:700,cursor:"pointer" }}>
             Cancel
@@ -452,9 +467,72 @@ function CalendarSidebar({ unplaced, onDragStart }) {
   );
 }
 
+// ── Schedule Controls Bar ──────────────────────────────────────────────────
+// Compact inline controls for wake/bed/nap times at the top of the schedule page.
+
+function ScheduleControlsBar({ profile, onProfileChange }) {
+  const WAKE_OPTIONS = [];
+  const BED_OPTIONS = [];
+  for (let h = 5; h <= 10; h++) { WAKE_OPTIONS.push(`${String(h).padStart(2,"0")}:00`); if (h < 10) WAKE_OPTIONS.push(`${String(h).padStart(2,"0")}:30`); }
+  for (let h = 17; h <= 22; h++) { BED_OPTIONS.push(`${String(h).padStart(2,"0")}:00`); if (h < 22) BED_OPTIONS.push(`${String(h).padStart(2,"0")}:30`); }
+  const NAP_TIMES = [];
+  for (let h = 9; h <= 17; h++) { NAP_TIMES.push(`${String(h).padStart(2,"0")}:00`); NAP_TIMES.push(`${String(h).padStart(2,"0")}:30`); }
+  const NAP_DURATIONS = [30, 45, 60, 90, 120];
+
+  const selStyle = { padding:"3px 6px", borderRadius:6, border:"1.5px solid #E8E4DF", fontSize:11, fontWeight:600, background:"#fff", cursor:"pointer" };
+  const lblStyle = { fontSize:10, fontWeight:700, color:"#8A9BA5", whiteSpace:"nowrap" };
+
+  const updateNap = (i, field, value) => {
+    const naps = [...profile.naps];
+    naps[i] = { ...naps[i], [field]: field === "duration" ? parseInt(value) : value };
+    onProfileChange({ ...profile, naps });
+  };
+  const removeNap = (i) => onProfileChange({ ...profile, naps: profile.naps.filter((_, j) => j !== i) });
+  const addNap = () => onProfileChange({ ...profile, naps: [...profile.naps, { start: "14:00", duration: 60 }] });
+
+  return (
+    <div style={{
+      display:"flex", flexWrap:"wrap", alignItems:"center", gap:10, justifyContent:"center",
+      background:"#fff", borderRadius:10, border:"1px solid #F0EDE8", padding:"8px 14px",
+      marginBottom:16, maxWidth:900, margin:"0 auto 16px",
+    }}>
+      {/* Wake */}
+      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+        <span style={lblStyle}>🌅 Wake</span>
+        <select value={profile.wake_time} onChange={e => onProfileChange({ ...profile, wake_time: e.target.value })} style={selStyle}>
+          {WAKE_OPTIONS.map(t => <option key={t} value={t}>{formatTime12(t)}</option>)}
+        </select>
+      </div>
+      {/* Bed */}
+      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+        <span style={lblStyle}>🌙 Bed</span>
+        <select value={profile.bed_time} onChange={e => onProfileChange({ ...profile, bed_time: e.target.value })} style={selStyle}>
+          {BED_OPTIONS.map(t => <option key={t} value={t}>{formatTime12(t)}</option>)}
+        </select>
+      </div>
+      {/* Divider */}
+      <div style={{ width:1, height:20, background:"#E8E4DF" }} />
+      {/* Naps */}
+      {profile.naps.map((nap, i) => (
+        <div key={i} style={{ display:"flex", alignItems:"center", gap:4 }}>
+          <span style={lblStyle}>😴</span>
+          <select value={nap.start} onChange={e => updateNap(i, "start", e.target.value)} style={selStyle}>
+            {NAP_TIMES.map(t => <option key={t} value={t}>{formatTime12(t)}</option>)}
+          </select>
+          <select value={nap.duration} onChange={e => updateNap(i, "duration", e.target.value)} style={selStyle}>
+            {NAP_DURATIONS.map(d => <option key={d} value={d}>{d}m</option>)}
+          </select>
+          <button onClick={() => removeNap(i)} style={{ background:"none", border:"none", color:"#8A9BA5", cursor:"pointer", fontSize:13, padding:0, lineHeight:1 }}>×</button>
+        </div>
+      ))}
+      <button onClick={addNap} style={{ fontSize:10, fontWeight:700, color:"#8A9BA5", background:"none", border:"1px dashed #D1CCC6", borderRadius:6, padding:"3px 8px", cursor:"pointer" }}>+ Nap</button>
+    </div>
+  );
+}
+
 // ── Main WeeklyCalendar ────────────────────────────────────────────────────
 
-export default function WeeklyCalendar({ itinerary, activities, selectedIds, profile, onBack, onBackToActivities, onNextStep, SaveTripButtonComponent }) {
+export default function WeeklyCalendar({ itinerary, activities, selectedIds, profile, onProfileChange, onBack, onBackToActivities, onNextStep, SaveTripButtonComponent }) {
   const [days, setDays] = useState(() =>
     (itinerary?.days ?? []).map((d, i) => ({
       ...d,
@@ -603,10 +681,14 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
     setShowMobileSidebar(false);
   };
 
-  const updateBlockNotes = (dayIndex, blockId, notes) => {
+  const updateBlock = (dayIndex, blockId, updates) => {
     setDays(prev => prev.map((d, i) => {
       if (i !== dayIndex) return d;
-      return { ...d, slots: d.slots.map(s => s.id === blockId ? { ...s, notes } : s) };
+      const slots = d.slots.map(s => {
+        if (s.id !== blockId) return s;
+        return { ...s, notes: updates.notes, start: updates.start ?? s.start, duration_mins: updates.duration_mins ?? s.duration_mins };
+      }).sort((a, b) => timeToMins(a.start) - timeToMins(b.start));
+      return { ...d, slots };
     }));
     setEditingNotes(null);
   };
@@ -645,10 +727,15 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
       </div>
 
       {/* Nav buttons */}
-      <div style={{ display:"flex",justifyContent:"center",gap:10,marginBottom:20 }}>
+      <div style={{ display:"flex",justifyContent:"center",gap:10,marginBottom:12 }}>
         <button onClick={onBackToActivities} style={{ padding:"9px 18px",borderRadius:9,border:"2px solid #0B7A8E",background:"#fff",color:"#0B7A8E",fontSize:12,fontWeight:700,cursor:"pointer" }}>← Edit Activities</button>
         <button onClick={onBack} style={{ padding:"9px 18px",borderRadius:9,border:"2px solid #F0EDE8",background:"transparent",color:"#8A9BA5",fontSize:12,fontWeight:700,cursor:"pointer" }}>← Edit Family</button>
       </div>
+
+      {/* Schedule Controls Bar — compact wake/bed/nap adjustment */}
+      {onProfileChange && (
+        <ScheduleControlsBar profile={profile} onProfileChange={onProfileChange} />
+      )}
 
       {isMobile ? (
         /* ── Mobile: single-day view with tab navigation ── */
@@ -879,7 +966,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
       {editingBlock && (
         <BlockNotesModal
           block={editingBlock}
-          onSave={(notes) => updateBlockNotes(editingNotes.dayIndex, editingNotes.blockId, notes)}
+          onSave={(updates) => updateBlock(editingNotes.dayIndex, editingNotes.blockId, updates)}
           onClose={() => setEditingNotes(null)}
         />
       )}

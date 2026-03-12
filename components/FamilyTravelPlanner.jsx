@@ -169,6 +169,7 @@ export default function FamilyTravelPlanner() {
             activities={activities}
             selectedIds={selectedIds}
             profile={profile}
+            onProfileChange={setProfile}
             onBack={() => setStep(0)}
             onBackToActivities={() => setStep(1)}
             onNextStep={() => setStep(3)}
