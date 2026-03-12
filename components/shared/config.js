@@ -152,4 +152,10 @@ input:focus,select:focus{outline:none;border-color:var(--ocean)!important;box-sh
 .drag-chip{cursor:grab;user-select:none;transition:transform .15s,box-shadow .15s}.drag-chip:active{cursor:grabbing;transform:scale(1.05);box-shadow:0 6px 20px rgba(0,0,0,.15)}
 .drop-zone{transition:background .2s,border-color .2s}
 .drop-zone.drag-over{background:var(--sunset-light)!important;border-color:var(--sunset)!important}
+@media print{
+  body{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  header,.no-print,button:not(.print-keep){display:none!important}
+  main{padding:0!important;max-width:none!important}
+  .print-break{page-break-before:always}
+}
 `;

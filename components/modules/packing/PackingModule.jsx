@@ -90,46 +90,39 @@ function AffiliateButton({ searchQuery }) {
   );
 }
 
-function PackingItem({ item, onToggle }) {
+function PackingChip({ item, onToggle }) {
   return (
     <div
       onClick={() => onToggle(item.id)}
+      title={[item.name, item.quantity_note, item.notes].filter(Boolean).join(" — ")}
       style={{
-        display: "flex", alignItems: "center", gap: 8, padding: "5px 8px",
-        borderRadius: 8, marginBottom: 3, cursor: "pointer",
+        display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px",
+        borderRadius: 6, cursor: "pointer",
         background: item.packed ? "#F0FAF4" : item.essential ? "#FFF9F0" : "#fff",
-        border: `1.5px solid ${item.packed ? "#2D8A4E44" : item.essential ? "#F59E0B44" : "#F0EDE8"}`,
-        transition: "background .15s,border-color .15s",
-        opacity: item.packed ? 0.7 : 1,
+        border: `1.5px solid ${item.packed ? "#2D8A4E44" : item.essential ? "#F59E0B44" : "#E8E4DF"}`,
+        transition: "background .15s",
+        opacity: item.packed ? 0.65 : 1,
+        whiteSpace: "nowrap",
       }}
     >
       <div style={{
-        width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-        border: `2px solid ${item.packed ? "#2D8A4E" : "#D1CCC6"}`,
+        width: 13, height: 13, borderRadius: 3, flexShrink: 0,
+        border: `1.5px solid ${item.packed ? "#2D8A4E" : "#D1CCC6"}`,
         background: item.packed ? "#2D8A4E" : "transparent",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        {item.packed && <span style={{ color: "#fff", fontSize: 10, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+        {item.packed && <span style={{ color: "#fff", fontSize: 8, fontWeight: 800, lineHeight: 1 }}>✓</span>}
       </div>
       <span style={{
-        fontSize: 12, fontWeight: item.packed ? 600 : 700, flexShrink: 0,
+        fontSize: 11, fontWeight: item.packed ? 600 : 700,
         color: item.packed ? "#8A9BA5" : "#1C2B33",
         textDecoration: item.packed ? "line-through" : "none",
       }}>{item.name}</span>
       {item.essential && !item.packed && (
-        <span style={{ fontSize: 8, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em", color: "#B45309", background: "#FFF3E0", padding: "1px 4px", borderRadius: 3, flexShrink: 0 }}>Essential</span>
+        <span style={{ fontSize: 7, fontWeight: 800, color: "#B45309", lineHeight: 1 }}>★</span>
       )}
       {item.quantity_note && !item.packed && (
-        <span style={{ fontSize: 9, color: "#8A9BA5", fontWeight: 600, flexShrink: 0 }}>{item.quantity_note}</span>
-      )}
-      {item.notes && !item.packed && (
-        <span title={item.notes} style={{ fontSize: 10, color: "#B0BAC2", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.notes}</span>
-      )}
-      {!item.packed && (
-        <div style={{ display: "flex", gap: 3, marginLeft: "auto", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-          <AffiliateButton searchQuery={item.affiliate_search} />
-          <BabyQuipRentButton name={item.name} />
-        </div>
+        <span style={{ fontSize: 9, color: "#8A9BA5", fontWeight: 600 }}>{item.quantity_note}</span>
       )}
     </div>
   );
@@ -138,32 +131,57 @@ function PackingItem({ item, onToggle }) {
 function CategorySection({ category, items, onToggle, collapsed, onToggleCollapse }) {
   const cfg = CATEGORY_CONFIG[category] || { emoji: "📦", label: category };
   const packed = items.filter(i => i.packed).length;
+  const allDone = packed === items.length;
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <button
-        onClick={onToggleCollapse}
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%",
-          background: "none", border: "none", cursor: "pointer", padding: "6px 0",
-          fontFamily: "'Nunito',sans-serif",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 18 }}>{cfg.emoji}</span>
-          <span style={{ fontSize: 14, fontWeight: 800, color: "#1C2B33" }}>{cfg.label}</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#8A9BA5" }}>({packed}/{items.length})</span>
-        </div>
-        {packed > 0 && (
-          <div style={{ width: 80, height: 4, borderRadius: 2, background: "#F0EDE8", overflow: "hidden" }}>
-            <div style={{ width: `${(packed / items.length) * 100}%`, height: "100%", background: "#2D8A4E", borderRadius: 2, transition: "width .3s" }} />
+    <div style={{ marginBottom: 10, borderBottom: "1px solid #F0EDE8", paddingBottom: 10 }}>
+      {/* Single-line: category label + inline chips */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        {/* Category label — clickable to collapse */}
+        <button
+          onClick={onToggleCollapse}
+          style={{
+            display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
+            background: "none", border: "none", cursor: "pointer", padding: "3px 0",
+            fontFamily: "'Nunito',sans-serif",
+          }}
+        >
+          <span style={{ fontSize: 15 }}>{cfg.emoji}</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: allDone ? "#2D8A4E" : "#1C2B33", whiteSpace: "nowrap" }}>
+            {cfg.label}
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: allDone ? "#2D8A4E" : "#8A9BA5" }}>
+            {packed}/{items.length}
+          </span>
+          <span style={{ fontSize: 10, color: "#8A9BA5" }}>{collapsed ? "▸" : "▾"}</span>
+        </button>
+
+        {/* Inline chips — visible when expanded */}
+        {!collapsed && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, flex: 1, minWidth: 0, alignItems: "center" }}>
+            {items.map(item => <PackingChip key={item.id} item={item} onToggle={onToggle} />)}
           </div>
         )}
-        <span style={{ fontSize: 12, color: "#8A9BA5" }}>{collapsed ? "▼" : "▲"}</span>
-      </button>
-      {!collapsed && (
-        <div style={{ paddingLeft: 4 }}>
-          {items.map(item => <PackingItem key={item.id} item={item} onToggle={onToggle} />)}
+
+        {/* Progress bar — visible when collapsed */}
+        {collapsed && (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+            <div style={{ flex: 1, height: 4, borderRadius: 2, background: "#F0EDE8", overflow: "hidden" }}>
+              <div style={{ width: `${(packed / items.length) * 100}%`, height: "100%", background: allDone ? "#2D8A4E" : "#0B7A8E", borderRadius: 2, transition: "width .3s" }} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Affiliate links row — shown when expanded and items have affiliates */}
+      {!collapsed && items.some(i => !i.packed && (i.affiliate_search || RENTABLE.test(i.name))) && (
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4, paddingLeft: 24 }}>
+          {items.filter(i => !i.packed && i.affiliate_search).slice(0, 3).map(i => (
+            <AffiliateButton key={i.id} searchQuery={i.affiliate_search} />
+          ))}
+          {items.filter(i => !i.packed && RENTABLE.test(i.name)).slice(0, 2).map(i => (
+            <BabyQuipRentButton key={i.id} name={i.name} />
+          ))}
         </div>
       )}
     </div>

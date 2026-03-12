@@ -6,7 +6,7 @@
    ────────────────────────────────────────────────────────────────────────── */
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { TYPE_CONFIG, CAT_LABELS, ENERGY_EMOJI_BY_TYPE } from "./shared/config";
+import { TYPE_CONFIG, CAT_LABELS, ENERGY_EMOJI_BY_TYPE, ENERGY_CONFIG } from "./shared/config";
 import { timeToMins, minsToTime, formatTime12, formatTimeShort, formatDateShort, getMockWeather, snapMins } from "./shared/utils";
 
 // ── Schedule-specific Constants ───────────────────────────────────────────
@@ -66,7 +66,7 @@ function TimeGutter({ wakeMins, bedMins, topOffset }) {
 
 // ── Block Notes Modal ──────────────────────────────────────────────────────
 
-function BlockNotesModal({ block, onSave, onClose }) {
+function BlockNotesModal({ block, onSave, onClose, dayIndex, totalDays, onMoveToDay }) {
   const [notes, setNotes] = useState(block.notes ?? "");
   const [startTime, setStartTime] = useState(block.start ?? "09:00");
   const [duration, setDuration] = useState(block.duration_mins ?? 60);
@@ -74,6 +74,7 @@ function BlockNotesModal({ block, onSave, onClose }) {
   const catLabel = block.duration_category ? CAT_LABELS[block.duration_category] : null;
 
   const inputStyle = { padding:"5px 8px", borderRadius:7, border:"1.5px solid #E8E4DF", fontSize:12, fontWeight:600, background:"#fff" };
+  const isMovable = block.type !== "rest" && block.type !== "meal";
 
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(28,43,51,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,padding:20 }}>
@@ -107,6 +108,34 @@ function BlockNotesModal({ block, onSave, onClose }) {
             </select>
           </div>
         </div>
+
+        {/* Move to another day — useful on mobile */}
+        {isMovable && totalDays > 1 && onMoveToDay && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display:"block",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"#8A9BA5",marginBottom:4 }}>
+              Move to Day
+            </label>
+            <div style={{ display:"flex",gap:4,flexWrap:"wrap" }}>
+              {Array.from({ length: totalDays }, (_, i) => (
+                <button
+                  key={i}
+                  disabled={i === dayIndex}
+                  onClick={() => { onMoveToDay(dayIndex, block.id, i, startTime); onClose(); }}
+                  style={{
+                    padding:"4px 10px", borderRadius:6, border:"1.5px solid",
+                    borderColor: i === dayIndex ? "#E8E4DF" : "#0B7A8E",
+                    background: i === dayIndex ? "#F0EDE8" : "#E6F6F8",
+                    color: i === dayIndex ? "#8A9BA5" : "#0B7A8E",
+                    fontSize:11, fontWeight:700, cursor: i === dayIndex ? "default" : "pointer",
+                    opacity: i === dayIndex ? 0.5 : 1,
+                  }}
+                >
+                  Day {i + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {block.location_name && (
           <p style={{ fontSize:11,color:"#8A9BA5",marginBottom:10,display:"flex",alignItems:"center",gap:4 }}>
@@ -285,11 +314,11 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
         const dur = slot.duration_mins ?? 60;
         const blockH = Math.max(dur * PX_PER_MIN - 2, 36);
 
-        // nap = draggable + resizable, no delete; fixed = truly immovable
+        // nap = draggable + resizable + deletable; fixed (meals) = truly immovable
         const isNap = slot.type === "nap";
-        const isFixed = slot.type === "meal" || (slot.type === "rest" && slot.title !== "Free Time");
+        const isFixed = slot.type === "meal" || (slot.type === "rest" && slot.title !== "Free Time" && !isNap);
         const isDraggable = !isFixed;
-        const showDelete = !isFixed && !isNap;
+        const showDelete = !isFixed;
 
         const c = TYPE_CONFIG[slot.type] || TYPE_CONFIG[slot.block_type] || TYPE_CONFIG.custom;
         const catLabel = slot.duration_category ? CAT_LABELS[slot.duration_category] : null;
@@ -333,7 +362,7 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
               overflow:"hidden",
               cursor: isFixed ? "default" : "grab",
               boxSizing:"border-box",
-              zIndex: isFixed ? 1 : 2,
+              zIndex: isFixed ? 1 : isNap ? 3 : (slot.duration_category === "full_day" ? 1 : 2),
               opacity: isBeingDragged ? 0.4 : 1,
               display:"flex", flexDirection:"column",
             }}
@@ -407,6 +436,31 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
         );
       })}
 
+      {/* Travel time indicators between activity blocks */}
+      {(() => {
+        const activitySlots = day.slots.filter(s => s.type !== "rest" && s.type !== "nap" && s.type !== "meal" && s.title !== "Free Time");
+        return activitySlots.map((slot, i) => {
+          if (i === 0) return null;
+          const prev = activitySlots[i - 1];
+          const prevEnd = timeToMins(prev.start) - wakeMins + (prev.duration_mins ?? 60);
+          const curStart = timeToMins(slot.start) - wakeMins;
+          const gap = curStart - prevEnd;
+          if (gap < 10 || gap > 90) return null; // only show for reasonable gaps
+          const midY = (prevEnd + curStart) / 2 * PX_PER_MIN;
+          return (
+            <div key={`travel-${i}`} style={{
+              position: "absolute", top: midY - 7, left: "50%", transform: "translateX(-50%)",
+              background: "#fff", border: "1px solid #E8E4DF", borderRadius: 8,
+              padding: "1px 6px", fontSize: 8, fontWeight: 700, color: "#8A9BA5",
+              zIndex: 4, pointerEvents: "none", whiteSpace: "nowrap",
+              boxShadow: "0 1px 3px rgba(0,0,0,.08)",
+            }}>
+              🚗 {gap}m
+            </div>
+          );
+        });
+      })()}
+
       {/* Drop preview indicator */}
       {dragState.active && dragState.overDay === dayIndex && dragState.overMin != null && (
         <div style={{
@@ -463,6 +517,86 @@ function CalendarSidebar({ unplaced, onDragStart }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Trip Intensity Meter ──────────────────────────────────────────────────
+// Speedometer-style indicator showing overall trip energy level.
+
+function TripIntensityMeter({ tripIntensity, days }) {
+  if (!tripIntensity) return null;
+
+  const { level, label, highDays, medDays, totalDays, warning } = tripIntensity;
+  const colors = { low: "#16A34A", medium: "#D97706", high: "#DC2626" };
+  const bgColors = { low: "#F0FDF4", medium: "#FFFBEB", high: "#FEF2F2" };
+  const icons = { low: "😌", medium: "⚡", high: "🔥" };
+  const color = colors[level];
+  const bg = bgColors[level];
+
+  // Needle angle: low=~30°, medium=~90°, high=~150° (left to right arc)
+  const ratio = (highDays + medDays * 0.5) / Math.max(totalDays, 1);
+  const needleAngle = -90 + ratio * 180; // -90 = far left, 90 = far right
+
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+      background: bg, borderRadius: 12, border: `1.5px solid ${color}33`,
+      padding: "10px 20px", maxWidth: 340, margin: "0 auto 12px",
+    }}>
+      {/* Mini speedometer */}
+      <div style={{ position: "relative", width: 80, height: 44 }}>
+        {/* Arc background */}
+        <svg viewBox="0 0 80 44" style={{ width: 80, height: 44 }}>
+          {/* Green zone */}
+          <path d="M 8 40 A 32 32 0 0 1 28 10" fill="none" stroke="#16A34A" strokeWidth="6" strokeLinecap="round" />
+          {/* Yellow zone */}
+          <path d="M 28 10 A 32 32 0 0 1 52 10" fill="none" stroke="#D97706" strokeWidth="6" strokeLinecap="round" />
+          {/* Red zone */}
+          <path d="M 52 10 A 32 32 0 0 1 72 40" fill="none" stroke="#DC2626" strokeWidth="6" strokeLinecap="round" />
+          {/* Needle */}
+          <line
+            x1="40" y1="40"
+            x2={40 + 24 * Math.cos((needleAngle - 90) * Math.PI / 180)}
+            y2={40 + 24 * Math.sin((needleAngle - 90) * Math.PI / 180)}
+            stroke="#1C2B33" strokeWidth="2.5" strokeLinecap="round"
+          />
+          <circle cx="40" cy="40" r="3" fill="#1C2B33" />
+        </svg>
+      </div>
+
+      {/* Label */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ fontSize: 16 }}>{icons[level]}</span>
+        <span style={{ fontSize: 13, fontWeight: 800, color }}>{label} Trip</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: "#8A9BA5" }}>
+          ({highDays} high, {medDays ?? 0} med / {totalDays} days)
+        </span>
+      </div>
+
+      {/* Day intensity dots */}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center" }}>
+        {(days ?? []).map((day, i) => {
+          const dc = colors[day.intensity] ?? colors.low;
+          return (
+            <div key={i} title={`Day ${day.day}: ${day.intensity}`} style={{
+              width: 18, height: 18, borderRadius: "50%",
+              background: dc, color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 8, fontWeight: 800,
+            }}>
+              {day.day}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Warning */}
+      {warning && (
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#DC2626", textAlign: "center", lineHeight: 1.4 }}>
+          ⚠️ {warning}
+        </div>
+      )}
     </div>
   );
 }
@@ -722,7 +856,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
           {profile?.destination ?? itinerary?.destination} Itinerary
         </h2>
         <p style={{ color:"#8A9BA5",fontSize:13,marginTop:4 }}>
-          Click a block to add notes · Drag to reschedule · Drag bottom handle to resize
+          Tap a block to edit · Drag to reschedule · Use "Move to Day" on mobile
         </p>
       </div>
 
@@ -736,6 +870,9 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
       {onProfileChange && (
         <ScheduleControlsBar profile={profile} onProfileChange={onProfileChange} />
       )}
+
+      {/* Trip Intensity Meter */}
+      <TripIntensityMeter tripIntensity={itinerary?.tripIntensity} days={days} />
 
       {isMobile ? (
         /* ── Mobile: single-day view with tab navigation ── */
@@ -858,6 +995,9 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
           {/* Action buttons */}
           <div style={{ display:"flex", justifyContent:"center", marginTop:16, gap:10, flexWrap:"wrap", alignItems:"center" }}>
             {SaveTripButtonComponent && <SaveTripButtonComponent itinerary={currentItinerary} />}
+            <button onClick={() => window.print()} className="no-print" style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#E6F6F8", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
+              🖨️ Print / PDF
+            </button>
             {onNextStep && (
               <button onClick={onNextStep} style={{ padding:"11px 24px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#7C3AED,#4F46E5)", color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
                 🧳 Build Packing List →
@@ -931,6 +1071,9 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
 
             <div style={{ display:"flex", justifyContent:"center", marginTop:16, gap:12, flexWrap:"wrap", alignItems:"center" }}>
               {SaveTripButtonComponent && <SaveTripButtonComponent itinerary={currentItinerary} />}
+              <button onClick={() => window.print()} className="no-print" style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#E6F6F8", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
+                🖨️ Print / PDF
+              </button>
               {onNextStep && (
                 <button onClick={onNextStep} style={{
                   padding:"11px 24px", borderRadius:12, border:"none",
@@ -966,7 +1109,10 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
       {editingBlock && (
         <BlockNotesModal
           block={editingBlock}
+          dayIndex={editingNotes.dayIndex}
+          totalDays={days.length}
           onSave={(updates) => updateBlock(editingNotes.dayIndex, editingNotes.blockId, updates)}
+          onMoveToDay={moveBlock}
           onClose={() => setEditingNotes(null)}
         />
       )}
