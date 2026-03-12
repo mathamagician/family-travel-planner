@@ -1,82 +1,24 @@
 "use client";
 
+/* ─── Module 3B: Schedule Module (WeeklyCalendar) ─────────────────────────
+   Standalone reusable weekly calendar component.
+   Designed to be extractable as a plug-in for future projects.
+   ────────────────────────────────────────────────────────────────────────── */
+
 import { useState, useRef, useCallback, useEffect } from "react";
+import { TYPE_CONFIG, CAT_LABELS, ENERGY_EMOJI_BY_TYPE } from "./shared/config";
+import { timeToMins, minsToTime, formatTime12, formatTimeShort, formatDateShort, getMockWeather, snapMins } from "./shared/utils";
 
-// ── Constants ──────────────────────────────────────────────────────────────
-
-const TYPE_CONFIG = {
-  attraction:    { emoji: "🎢", color: "#CF4B3A", bg: "#FEF2F1" },
-  park:          { emoji: "🌳", color: "#2D8A4E", bg: "#F0FAF4" },
-  outdoors:      { emoji: "🏖️", color: "#0B7A8E", bg: "#EEFBFD" },
-  culture:       { emoji: "🏛️", color: "#7C3AED", bg: "#FAF5FF" },
-  museum:        { emoji: "🔬", color: "#B45309", bg: "#FFFBEB" },
-  food:          { emoji: "🍽️", color: "#DC2626", bg: "#FFF5F5" },
-  entertainment: { emoji: "🎭", color: "#4F46E5", bg: "#F5F3FF" },
-  hike:          { emoji: "🥾", color: "#6B7234", bg: "#F5F5EB" },
-  nap:           { emoji: "😴", color: "#8A9BA5", bg: "#F3F4F6" },
-  meal:          { emoji: "🍽️", color: "#B45309", bg: "#FFF9F0" },
-  rest:          { emoji: "☁️", color: "#9CA3AF", bg: "#F9FAFB" },
-  custom:        { emoji: "📌", color: "#4F46E5", bg: "#F5F3FF" },
-  free:          { emoji: "✨", color: "#9CA3AF", bg: "#FAFAF7" },
-};
-
-const CAT_LABELS = {
-  full_day: "Full Day",
-  half_day: "Half Day",
-  "2-4h": "2–4h",
-  "1-2h": "1–2h",
-  under_1h: "<1h",
-};
-
-const ENERGY_BY_TYPE = {
-  attraction:"🔥", entertainment:"🔥",
-  outdoors:"⚡", hike:"⚡",
-  museum:"😌", culture:"😌", park:"😌", food:"😌",
-};
+// ── Schedule-specific Constants ───────────────────────────────────────────
 
 const PX_PER_MIN = 0.8;
 const SNAP_MINS  = 15;
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function timeToMins(t) {
-  if (!t) return 0;
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-function minsToTime(m) {
-  const h = Math.floor(m / 60) % 24;
-  const min = m % 60;
-  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-}
-function formatTime12(t) {
-  const [h, m] = t.split(":").map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
-}
-function formatDateShort(ds) {
-  return new Date(ds + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-}
-function formatTimeShort(t) {
-  const [h, m] = t.split(":").map(Number);
-  return (h % 12 || 12) + (m > 0 ? `:${String(m).padStart(2, "0")}` : "") + (h >= 12 ? "pm" : "am");
-}
 
 // Height of the desktop day header card (approx) — used to offset the time gutter
 const DESKTOP_HEADER_H = 78;
 
 function snap(mins) {
-  return Math.round(mins / SNAP_MINS) * SNAP_MINS;
-}
-
-// Mock weather fallback (deterministic pseudo-random by date)
-function getMockWeather(dateStr) {
-  let hash = 0;
-  for (let i = 0; i < dateStr.length; i++) hash = ((hash << 5) - hash) + dateStr.charCodeAt(i);
-  const seed = Math.abs(hash);
-  const conditions = ["☀️","⛅","☁️","🌧️","☀️","⛅","☀️"];
-  const month = parseInt(dateStr.split("-")[1]);
-  const base = {1:38,2:42,3:52,4:62,5:72,6:82,7:88,8:86,9:78,10:66,11:52,12:40}[month]||70;
-  return { icon: conditions[seed % conditions.length], highF: base + (seed % 15) - 7 };
+  return snapMins(mins, SNAP_MINS);
 }
 
 // ── Time Gutter ────────────────────────────────────────────────────────────
@@ -390,8 +332,8 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
                     <span style={{ fontSize:9,fontWeight:800,color:labelColor,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.4 }}>
                       {titleEmoji + slot.title}
                     </span>
-                    {ENERGY_BY_TYPE[slot.type] && !isFixed && !isNap && (
-                      <span style={{ fontSize:9,lineHeight:1.4,flexShrink:0 }} title={`Energy: ${slot.type}`}>{ENERGY_BY_TYPE[slot.type]}</span>
+                    {ENERGY_EMOJI_BY_TYPE[slot.type] && !isFixed && !isNap && (
+                      <span style={{ fontSize:9,lineHeight:1.4,flexShrink:0 }} title={`Energy: ${slot.type}`}>{ENERGY_EMOJI_BY_TYPE[slot.type]}</span>
                     )}
                     {catLabel && blockH > 38 && (
                       <span style={{ fontSize:8,fontWeight:700,color:labelColor,background:isNap?"#E5E7EB":c.bg,padding:"0 4px",borderRadius:3,whiteSpace:"nowrap",flexShrink:0,lineHeight:"14px",border:`1px solid ${isNap?"#D1D5DB":c.color+"33"}` }}>
