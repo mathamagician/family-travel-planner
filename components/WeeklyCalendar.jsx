@@ -478,7 +478,7 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
 
 function CalendarSidebar({ unplaced, onDragStart }) {
   return (
-    <div style={{
+    <div className="calendar-sidebar" style={{
       width:180, minWidth:180, flexShrink:0,
       background:"#fff", borderRadius:14, border:"1px solid #F0EDE8",
       padding:"12px 10px", maxHeight:"calc(100vh - 160px)", overflowY:"auto",
@@ -542,7 +542,7 @@ function TripIntensityMeter({ tripIntensity, days }) {
     <div style={{
       display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
       background: bg, borderRadius: 12, border: `1.5px solid ${color}33`,
-      padding: "10px 20px", maxWidth: 340, margin: "0 auto 12px",
+      padding: "10px 20px", maxWidth: 340,
     }}>
       {/* Mini speedometer */}
       <div style={{ position: "relative", width: 80, height: 44 }}>
@@ -791,6 +791,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
   };
 
   const dropFromSidebar = (dayIndex, newStart, activity) => {
+    const dur = activity.duration_mins_typical ?? activity.duration_mins ?? 90;
     const newBlock = {
       id: `act-${activity.id}-${Date.now()}`,
       title: activity.name,
@@ -798,14 +799,42 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
       block_type: "activity",
       activityId: activity.id,
       start: newStart,
-      duration_mins: activity.duration_mins_typical ?? activity.duration_mins ?? 90,
+      duration_mins: dur,
       location_name: activity.location ?? activity.address ?? null,
       hours: activity.hours,
       duration_category: activity.duration_category,
     };
+    const actStart = timeToMins(newStart);
+    const actEnd = actStart + dur;
+
     setDays(prev => prev.map((d, i) => {
       if (i !== dayIndex) return d;
-      const slots = [...d.slots, newBlock].sort((a, b) => timeToMins(a.start) - timeToMins(b.start));
+      // Adjust/remove Free Time blocks that overlap with the new activity
+      const adjusted = [];
+      for (const slot of d.slots) {
+        if (slot.title === "Free Time" && slot.type === "rest") {
+          const fStart = timeToMins(slot.start);
+          const fEnd = fStart + (slot.duration_mins ?? 0);
+          // No overlap — keep as-is
+          if (fEnd <= actStart || fStart >= actEnd) {
+            adjusted.push(slot);
+          } else {
+            // Free time before the activity
+            if (fStart < actStart) {
+              const before = actStart - fStart;
+              if (before >= 15) adjusted.push({ ...slot, duration_mins: before });
+            }
+            // Free time after the activity
+            if (fEnd > actEnd) {
+              const after = fEnd - actEnd;
+              if (after >= 15) adjusted.push({ ...slot, id: slot.id + "-after", start: minsToTime(actEnd), duration_mins: after });
+            }
+          }
+        } else {
+          adjusted.push(slot);
+        }
+      }
+      const slots = [...adjusted, newBlock].sort((a, b) => timeToMins(a.start) - timeToMins(b.start));
       return { ...d, slots };
     }));
   };
@@ -849,10 +878,10 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
 
   return (
     <div style={{ fontFamily:"'Nunito',sans-serif" }}>
-      {/* Header */}
-      <div style={{ textAlign:"center",marginBottom:16 }}>
-        <span style={{ fontSize:44,display:"block",marginBottom:6 }}>🗓️</span>
-        <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"clamp(20px,5vw,26px)",fontWeight:800 }}>
+      {/* Header — icon inline with title */}
+      <div style={{ textAlign:"center",marginBottom:12 }}>
+        <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"clamp(20px,5vw,26px)",fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",gap:10 }}>
+          <span style={{ fontSize:"clamp(24px,5vw,32px)" }}>🗓️</span>
           {profile?.destination ?? itinerary?.destination} Itinerary
         </h2>
         <p style={{ color:"#8A9BA5",fontSize:13,marginTop:4 }}>
@@ -860,19 +889,19 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
         </p>
       </div>
 
-      {/* Nav buttons */}
-      <div style={{ display:"flex",justifyContent:"center",gap:10,marginBottom:12 }}>
-        <button onClick={onBackToActivities} style={{ padding:"9px 18px",borderRadius:9,border:"2px solid #0B7A8E",background:"#fff",color:"#0B7A8E",fontSize:12,fontWeight:700,cursor:"pointer" }}>← Edit Activities</button>
-        <button onClick={onBack} style={{ padding:"9px 18px",borderRadius:9,border:"2px solid #F0EDE8",background:"transparent",color:"#8A9BA5",fontSize:12,fontWeight:700,cursor:"pointer" }}>← Edit Family</button>
+      {/* Edit buttons + Trip Intensity Meter — side by side */}
+      <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:16,marginBottom:12,flexWrap:"wrap" }}>
+        <div style={{ display:"flex",gap:8,flexShrink:0 }}>
+          <button onClick={onBackToActivities} style={{ padding:"8px 14px",borderRadius:9,border:"2px solid #0B7A8E",background:"#fff",color:"#0B7A8E",fontSize:11,fontWeight:700,cursor:"pointer" }}>← Edit Activities</button>
+          <button onClick={onBack} style={{ padding:"8px 14px",borderRadius:9,border:"2px solid #F0EDE8",background:"transparent",color:"#8A9BA5",fontSize:11,fontWeight:700,cursor:"pointer" }}>← Edit Family</button>
+        </div>
+        <TripIntensityMeter tripIntensity={itinerary?.tripIntensity} days={days} />
       </div>
 
-      {/* Schedule Controls Bar — compact wake/bed/nap adjustment */}
+      {/* Schedule Controls Bar — wake/bed/nap adjustment below meter */}
       {onProfileChange && (
         <ScheduleControlsBar profile={profile} onProfileChange={onProfileChange} />
       )}
-
-      {/* Trip Intensity Meter */}
-      <TripIntensityMeter tripIntensity={itinerary?.tripIntensity} days={days} />
 
       {isMobile ? (
         /* ── Mobile: single-day view with tab navigation ── */
@@ -957,7 +986,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
           )}
 
           {/* Unscheduled activities toggle */}
-          <button onClick={() => setShowMobileSidebar(s => !s)}
+          <button className="no-print" onClick={() => setShowMobileSidebar(s => !s)}
             style={{
               marginTop:12, width:"100%", padding:"11px 14px", borderRadius:10,
               border:"1.5px solid #E8E4DF", background:"#fff", color:"#1C2B33",
@@ -970,7 +999,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
           </button>
 
           {showMobileSidebar && (
-            <div style={{ background:"#fff", borderRadius:"0 0 12px 12px", border:"1.5px solid #E8E4DF", borderTop:"none", padding:"10px" }}>
+            <div className="no-print" style={{ background:"#fff", borderRadius:"0 0 12px 12px", border:"1.5px solid #E8E4DF", borderTop:"none", padding:"10px" }}>
               {unplaced.length === 0 ? (
                 <p style={{ fontSize:12, color:"#8A9BA5", textAlign:"center", padding:"8px 0", fontStyle:"italic" }}>All activities placed!</p>
               ) : unplaced.map(a => {
@@ -997,6 +1026,14 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
             {SaveTripButtonComponent && <SaveTripButtonComponent itinerary={currentItinerary} />}
             <button onClick={() => window.print()} className="no-print" style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#E6F6F8", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
               🖨️ Print / PDF
+            </button>
+            <button className="no-print" onClick={() => {
+              const dest = profile?.destination ?? itinerary?.destination ?? "Trip";
+              const subject = encodeURIComponent(`${dest} Itinerary — Toddler Trip`);
+              const body = encodeURIComponent(`Here's your ${dest} itinerary from Toddler Trip!\n\nTo get a PDF:\n1. Open this page in your browser\n2. Click "Print / PDF"\n3. Choose "Save as PDF" as destination\n4. Attach the saved PDF to your email\n\nOr view your trip online at toddlertrip.com`);
+              window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+            }} style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#fff", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
+              📧 Email
             </button>
             {onNextStep && (
               <button onClick={onNextStep} style={{ padding:"11px 24px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#7C3AED,#4F46E5)", color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
@@ -1073,6 +1110,14 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
               {SaveTripButtonComponent && <SaveTripButtonComponent itinerary={currentItinerary} />}
               <button onClick={() => window.print()} className="no-print" style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#E6F6F8", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
                 🖨️ Print / PDF
+              </button>
+              <button className="no-print" onClick={() => {
+                const dest = profile?.destination ?? itinerary?.destination ?? "Trip";
+                const subject = encodeURIComponent(`${dest} Itinerary — Toddler Trip`);
+                const body = encodeURIComponent(`Here's your ${dest} itinerary from Toddler Trip!\n\nTo get a PDF:\n1. Open this page in your browser\n2. Click "Print / PDF"\n3. Choose "Save as PDF" as destination\n4. Attach the saved PDF to your email\n\nOr view your trip online at toddlertrip.com`);
+                window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+              }} style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#fff", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
+                📧 Email
               </button>
               {onNextStep && (
                 <button onClick={onNextStep} style={{

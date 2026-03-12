@@ -5,7 +5,7 @@
    All business logic and UI lives in the individual modules.
    ────────────────────────────────────────────────────────────────────────── */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { DEFAULT_PROFILE, GLOBAL_CSS } from "./shared/config";
 import { trackEvent } from "./GoogleAnalytics";
 
@@ -113,6 +113,7 @@ export default function FamilyTravelPlanner() {
   const [shareCopied, setShareCopied] = useState(false);
   const [packingItems, setPackingItems] = useState(draft?.packingItems ?? []);
   const [packingGenerated, setPackingGenerated] = useState(draft?.packingGenerated ?? false);
+  const activitiesDestRef = useRef(draft?.activitiesDestination ?? "");
 
   // Re-generate itinerary from restored draft (can't serialize functions/computed state)
   useEffect(() => {
@@ -133,6 +134,7 @@ export default function FamilyTravelPlanner() {
         selectedIds: [...selectedIds],
         packingItems,
         packingGenerated,
+        activitiesDestination: activitiesDestRef.current,
       });
     }
   }, [step, profile, activities, selectedIds, packingItems, packingGenerated]);
@@ -196,7 +198,7 @@ export default function FamilyTravelPlanner() {
         {/* Step 0: Family Profile */}
         {step === 0 && <>
           <MyTripsPanel onLoadTrip={handleLoadTrip} />
-          <FamilyModule profile={profile} setProfile={setProfile} onNext={() => { trackEvent("complete_profile", "funnel", profile.destination); setStep(1); }} />
+          <FamilyModule profile={profile} setProfile={setProfile} onNext={() => { trackEvent("complete_profile", "funnel", profile.destination); const dest = profile.destination.trim().toLowerCase(); if (activitiesDestRef.current && activitiesDestRef.current !== dest) { setActivities([]); setSelectedIds(new Set()); } activitiesDestRef.current = dest; setStep(1); }} />
         </>}
 
         {/* Step 1: Activities */}
