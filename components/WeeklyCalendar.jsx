@@ -852,7 +852,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
       {/* Header */}
       <div style={{ textAlign:"center",marginBottom:16 }}>
         <span style={{ fontSize:44,display:"block",marginBottom:6 }}>🗓️</span>
-        <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:800 }}>
+        <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"clamp(20px,5vw,26px)",fontWeight:800 }}>
           {profile?.destination ?? itinerary?.destination} Itinerary
         </h2>
         <p style={{ color:"#8A9BA5",fontSize:13,marginTop:4 }}>

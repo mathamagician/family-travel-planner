@@ -149,13 +149,13 @@ export default function FamilyModule({ profile, setProfile, onNext }) {
         {/* Preferences */}
         <div>
           <label style={L}>🌞 Outdoor</label>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 5, marginBottom: 10 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
             {OUTDOOR_PREFS.map(p => (
               <button key={p.key} onClick={() => togglePref(p.key)} style={prefBtn(profile.preferences[p.key], "var(--ocean)")}>{p.label}</button>
             ))}
           </div>
           <label style={L}>🏠 Indoor</label>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 5, marginBottom: 10 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
             {INDOOR_PREFS.map(p => (
               <button key={p.key} onClick={() => togglePref(p.key)} style={prefBtn(profile.preferences[p.key], "#7C3AED")}>{p.label}</button>
             ))}

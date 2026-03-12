@@ -118,27 +118,25 @@ export default function ActivitiesModule({ profile, activities, setActivities, s
   const toggleLabel = allSelected ? "Preferred Only" : prefOnlySelected ? "Deselect All" : "Select All";
 
   const NavRow = ({ compact }) => (
-    <div style={{ display: "flex", alignItems: "center", maxWidth: 1060, margin: compact ? "16px auto 10px" : "0 auto 14px" }}>
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8, maxWidth: 1060, margin: compact ? "16px auto 10px" : "0 auto 14px" }}>
       <button onClick={onBack} style={{ padding: "7px 14px", borderRadius: 9, border: "2px solid var(--mist)", background: "transparent", color: "var(--stone)", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>← Family</button>
-      <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        {!compact && <>
-          <button onClick={generate} disabled={loading} style={{ padding: "7px 16px", borderRadius: 9, border: "2px solid var(--ocean)", background: loading ? "var(--ocean-light)" : "var(--cloud)", color: "var(--ocean)", fontSize: 11, fontWeight: 700, cursor: loading ? "wait" : "pointer", animation: loading ? "pulse 1.5s infinite" : "none" }}>{loading ? "Generating..." : "✨ Generate with AI"}</button>
-          {activities.length > 0 && (
-            <button onClick={cycleSelection} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: "2px solid var(--mist)", background: "transparent", cursor: "pointer", fontSize: 11, fontWeight: 700, color: "var(--stone)" }}>
-              <div style={{ width: 15, height: 15, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid " + (allSelected ? "var(--ocean)" : prefOnlySelected ? "var(--sunset)" : "var(--stone)"), background: allSelected ? "var(--ocean)" : prefOnlySelected ? "var(--sunset)" : "transparent" }}>
-                {(allSelected || prefOnlySelected) && <span style={{ color: "#fff", fontSize: 9, fontWeight: 800 }}>{allSelected ? "✓" : "★"}</span>}
-              </div>
-              {toggleLabel}
-            </button>
-          )}
-          {activities.length > 0 && <span style={{ fontSize: 11, color: "var(--stone)", fontWeight: 600 }}>{selectedIds.size}/{activities.length}</span>}
-        </>}
-        {compact && <>
-          <div style={{ flex: 1, height: 1, background: "var(--mist)" }} />
-          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--stone)" }}>Other Activities</span>
-          <div style={{ flex: 1, height: 1, background: "var(--mist)" }} />
-        </>}
-      </div>
+      {!compact && <>
+        <button onClick={generate} disabled={loading} style={{ padding: "7px 16px", borderRadius: 9, border: "2px solid var(--ocean)", background: loading ? "var(--ocean-light)" : "var(--cloud)", color: "var(--ocean)", fontSize: 11, fontWeight: 700, cursor: loading ? "wait" : "pointer", animation: loading ? "pulse 1.5s infinite" : "none" }}>{loading ? "Generating..." : "✨ Generate with AI"}</button>
+        {activities.length > 0 && (
+          <button onClick={cycleSelection} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: "2px solid var(--mist)", background: "transparent", cursor: "pointer", fontSize: 11, fontWeight: 700, color: "var(--stone)" }}>
+            <div style={{ width: 15, height: 15, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid " + (allSelected ? "var(--ocean)" : prefOnlySelected ? "var(--sunset)" : "var(--stone)"), background: allSelected ? "var(--ocean)" : prefOnlySelected ? "var(--sunset)" : "transparent" }}>
+              {(allSelected || prefOnlySelected) && <span style={{ color: "#fff", fontSize: 9, fontWeight: 800 }}>{allSelected ? "✓" : "★"}</span>}
+            </div>
+            {toggleLabel}
+          </button>
+        )}
+        {activities.length > 0 && <span style={{ fontSize: 11, color: "var(--stone)", fontWeight: 600 }}>{selectedIds.size}/{activities.length}</span>}
+      </>}
+      {compact && <>
+        <div style={{ flex: 1, height: 1, background: "var(--mist)", minWidth: 20 }} />
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--stone)" }}>Other Activities</span>
+        <div style={{ flex: 1, height: 1, background: "var(--mist)", minWidth: 20 }} />
+      </>}
       <button onClick={onNext} disabled={!selectedIds.size} style={{ padding: "7px 16px", borderRadius: 9, border: "none", background: selectedIds.size ? "linear-gradient(135deg,var(--sunset),#F09A3A)" : "var(--mist)", color: selectedIds.size ? "#fff" : "var(--stone)", fontSize: 11, fontWeight: 800, cursor: selectedIds.size ? "pointer" : "not-allowed", boxShadow: selectedIds.size ? "0 4px 12px rgba(232,100,58,.3)" : "none", flexShrink: 0 }}>Build Itinerary →</button>
     </div>
   );
