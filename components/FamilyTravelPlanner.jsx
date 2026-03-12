@@ -28,7 +28,7 @@ import { generateItinerary } from "./modules/schedule/PlanningAgent";
 
 function StepIndicator({ current, steps }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", margin: "14px 0 6px" }}>
+    <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "center", margin: "14px 0 6px" }}>
       {steps.map((s, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>

@@ -92,6 +92,7 @@ function placeFromPool(pool, avail, t, slots) {
     hours: act.hours,
     duration_category: act.duration_category,
     energy: energyLevel(act),
+    description: act.notes ?? null,
   });
 
   return { used, act };
@@ -209,6 +210,7 @@ export function generateItinerary(profile, selectedActivities) {
         hours: act.hours,
         duration_category: act.duration_category,
         energy: energyLevel(act),
+        description: act.notes ?? null,
       });
       dayConsumed = true;
       dayIntensity = "high";

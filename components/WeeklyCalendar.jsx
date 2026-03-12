@@ -74,7 +74,7 @@ function BlockNotesModal({ block, onSave, onClose, dayIndex, totalDays, onMoveTo
   const catLabel = block.duration_category ? CAT_LABELS[block.duration_category] : null;
 
   const inputStyle = { padding:"5px 8px", borderRadius:7, border:"1.5px solid #E8E4DF", fontSize:12, fontWeight:600, background:"#fff" };
-  const isMovable = block.type !== "rest" && block.type !== "meal";
+  const isMovable = block.type !== "rest" || block.title === "Free Time";
 
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(28,43,51,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,padding:20 }}>
@@ -141,6 +141,13 @@ function BlockNotesModal({ block, onSave, onClose, dayIndex, totalDays, onMoveTo
           <p style={{ fontSize:11,color:"#8A9BA5",marginBottom:10,display:"flex",alignItems:"center",gap:4 }}>
             📍 <span style={{ overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{block.location_name}</span>
           </p>
+        )}
+
+        {/* Activity description */}
+        {block.description && (
+          <div style={{ fontSize:12,color:"#1C2B33",lineHeight:1.5,marginBottom:12,padding:"8px 10px",background:"#F9FAFB",borderRadius:8,border:"1px solid #F0EDE8" }}>
+            {block.description}
+          </div>
         )}
 
         <label style={{ display:"block",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"#8A9BA5",marginBottom:4 }}>
@@ -241,7 +248,7 @@ function CustomBlockModal({ startTime, onSave, onClose }) {
 
 // ── Day Column ─────────────────────────────────────────────────────────────
 
-function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBlock, onAddBlock, onDropFromSidebar, onResizeStart, onBlockClick, dragState, setDragState, activeResizeHandleRef, mobile }) {
+function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBlock, onAddBlock, onDropFromSidebar, onResizeStart, onBlockClick, dragState, setDragState, activeResizeHandleRef, mobile, activityMap }) {
   const colRef = useRef(null);
   const totalMins = bedMins - wakeMins;
   const height = totalMins * PX_PER_MIN;
@@ -301,7 +308,7 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
       onDragLeave={() => setDragState(s => ({ ...s, overDay: null }))}
       className="cal-empty"
       style={{
-        position:"relative", width: mobile ? "100%" : 160, minWidth: mobile ? undefined : 160, height, flexShrink:0,
+        position:"relative", width:"100%", height, flexShrink:0,
         background: dragState.active && dragState.overDay === dayIndex ? "#FEF0EB" : "#FAFAF7",
         borderRadius:12, border:"1px solid " + (dragState.active && dragState.overDay === dayIndex ? "#E8643A" : "#E8E4DF"),
         overflow:"hidden", transition:"background .15s,border-color .15s", cursor:"crosshair",
@@ -316,7 +323,8 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
 
         // nap = draggable + resizable + deletable; fixed (meals) = truly immovable
         const isNap = slot.type === "nap";
-        const isFixed = slot.type === "meal" || (slot.type === "rest" && slot.title !== "Free Time" && !isNap);
+        const isMeal = slot.type === "meal";
+        const isFixed = (slot.type === "rest" && slot.title !== "Free Time" && !isNap);
         const isDraggable = !isFixed;
         const showDelete = !isFixed;
 
@@ -325,20 +333,24 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
         const blockId = slot.id ?? `${slot.start}-${slot.title}`;
         const isBeingDragged = dragState.active && dragState.blockId === blockId;
 
-        const blockBg    = isNap ? "#F3F4F6" : isFixed ? "#FFF9F0" : c.bg;
-        const blockBorder = isNap ? "#D1D5DB" : isFixed ? "#F59E0B55" : c.color + "55";
-        const labelColor  = isNap ? "#9CA3AF" : isFixed ? "#B45309" : c.color;
-        const handleColor = isNap ? "#D1D5DB" : c.color + "66";
-        const titleEmoji  = isNap ? "😴 " : isFixed ? "🍽️ " : (c.emoji + " ");
+        const blockBg    = isNap ? "#F3F4F6" : isMeal ? "#FFF9F0" : isFixed ? "#FFF9F0" : c.bg;
+        const blockBorder = isNap ? "#D1D5DB" : isMeal ? "#F59E0B55" : isFixed ? "#F59E0B55" : c.color + "55";
+        const labelColor  = isNap ? "#9CA3AF" : isMeal ? "#B45309" : isFixed ? "#B45309" : c.color;
+        const handleColor = isNap ? "#D1D5DB" : isMeal ? "#F59E0B66" : c.color + "66";
+        const titleEmoji  = isNap ? "😴 " : isMeal ? "🍽️ " : isFixed ? "" : (c.emoji + " ");
+
+        // Resolve activity description from slot or activity map
+        const actDesc = slot.description || (slot.activityId && activityMap?.[slot.activityId]?.notes) || null;
 
         return (
           <div
             key={blockId}
             draggable={isDraggable}
+            title={actDesc || undefined}
             onClick={(e) => {
               // Don't open notes if clicking came from a stopPropagation child
               if (e.defaultPrevented) return;
-              onBlockClick(dayIndex, slot);
+              onBlockClick(dayIndex, { ...slot, description: actDesc });
             }}
             onDragStart={(e) => {
               if (isFixed || activeResizeHandleRef.current) { e.preventDefault(); return; }
@@ -376,7 +388,7 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
                     <span style={{ fontSize:9,fontWeight:800,color:labelColor,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.4 }}>
                       {titleEmoji + slot.title}
                     </span>
-                    {ENERGY_EMOJI_BY_TYPE[slot.type] && !isFixed && !isNap && (
+                    {ENERGY_EMOJI_BY_TYPE[slot.type] && !isFixed && !isNap && !isMeal && (
                       <span style={{ fontSize:9,lineHeight:1.4,flexShrink:0 }} title={`Energy: ${slot.type}`}>{ENERGY_EMOJI_BY_TYPE[slot.type]}</span>
                     )}
                     {catLabel && blockH > 38 && (
@@ -397,9 +409,13 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
                       📍 {slot.location_name}
                     </div>
                   )}
-                  {/* Notes — show actual text truncated */}
+                  {/* User notes — black text */}
                   {slot.notes && blockH > 46 && (
-                    <div title={slot.notes} style={{ fontSize:8,color:"#8A9BA5",marginTop:1,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>✏️ {slot.notes}</div>
+                    <div title={slot.notes} style={{ fontSize:9,color:"#1C2B33",fontWeight:600,marginTop:1,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>✏️ {slot.notes}</div>
+                  )}
+                  {/* Activity description — below notes */}
+                  {actDesc && blockH > 60 && (
+                    <div className="cal-block-desc" style={{ fontSize:8,color:"#8A9BA5",marginTop:1,lineHeight:1.3,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:Math.max(1,Math.floor((blockH - 60) / 10)),WebkitBoxOrient:"vertical" }}>{actDesc}</div>
                   )}
                 </div>
 
@@ -476,7 +492,7 @@ function DayColumn({ day, dayIndex, wakeMins, bedMins, onMoveBlock, onRemoveBloc
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
 
-function CalendarSidebar({ unplaced, onDragStart }) {
+function CalendarSidebar({ unplaced, removedBlocks, onDragStart, onRestoreBlock }) {
   return (
     <div className="calendar-sidebar" style={{
       width:180, minWidth:180, flexShrink:0,
@@ -517,6 +533,37 @@ function CalendarSidebar({ unplaced, onDragStart }) {
           </div>
         );
       })}
+
+      {/* Removed nap/rest/meal blocks */}
+      {removedBlocks && removedBlocks.length > 0 && (
+        <>
+          <div style={{ fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8A9BA5",marginTop:12,marginBottom:8,borderTop:"1px solid #F0EDE8",paddingTop:10 }}>
+            Removed ({removedBlocks.length})
+          </div>
+          {removedBlocks.map((b, i) => {
+            const isNap = b.type === "nap";
+            const emoji = isNap ? "😴" : b.type === "meal" ? "🍽️" : "☁️";
+            return (
+              <div key={b.id + "-" + i}
+                style={{
+                  padding:"7px 8px", borderRadius:9, marginBottom:5,
+                  background: isNap ? "#F3F4F6" : "#FFF9F0",
+                  border: `1.5px solid ${isNap ? "#D1D5DB" : "#F59E0B55"}`,
+                  display:"flex", alignItems:"center", gap:6,
+                }}>
+                <span style={{ fontSize:13, flexShrink:0 }}>{emoji}</span>
+                <div style={{ flex:1,minWidth:0 }}>
+                  <div style={{ fontSize:11,fontWeight:700,color:"#1C2B33",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{b.title}</div>
+                  <div style={{ fontSize:9,fontWeight:600,color:"#8A9BA5",marginTop:1 }}>{b.duration_mins}m</div>
+                </div>
+                <button onClick={() => onRestoreBlock(b, i)} style={{ padding:"3px 8px",borderRadius:6,border:"none",background:"linear-gradient(135deg,#E8643A,#F09A3A)",color:"#fff",fontSize:9,fontWeight:700,cursor:"pointer",flexShrink:0 }}>
+                  ↩
+                </button>
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
@@ -664,6 +711,136 @@ function ScheduleControlsBar({ profile, onProfileChange }) {
   );
 }
 
+// ── Email Itinerary Modal ─────────────────────────────────────────────────
+
+function EmailModal({ destination, days, onClose, calendarRef }) {
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState("");
+
+  const handleSend = async () => {
+    if (!email.trim()) return;
+    setSending(true);
+    setError(null);
+    setStatus("Generating PDF...");
+
+    let pdfBase64 = null;
+    try {
+      if (calendarRef?.current) {
+        const html2canvas = (await import("html2canvas")).default;
+        const { jsPDF } = await import("jspdf");
+
+        const el = calendarRef.current;
+        // Temporarily hide no-print elements for capture
+        const hiddenEls = el.querySelectorAll(".no-print, .calendar-sidebar");
+        hiddenEls.forEach(e => e.dataset.prevDisplay = e.style.display);
+        hiddenEls.forEach(e => e.style.display = "none");
+
+        const canvas = await html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#FAFAF7",
+          logging: false,
+          windowWidth: el.scrollWidth + 40,
+        });
+
+        // Restore hidden elements
+        hiddenEls.forEach(e => e.style.display = e.dataset.prevDisplay || "");
+
+        const imgW = canvas.width;
+        const imgH = canvas.height;
+        const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [imgW / 2, imgH / 2] });
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, imgW / 2, imgH / 2);
+        pdfBase64 = pdf.output("datauristring").split(",")[1];
+      }
+    } catch (e) {
+      console.warn("PDF generation failed, sending without attachment:", e);
+    }
+
+    setStatus("Sending email...");
+    try {
+      const res = await fetch("/api/send-itinerary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), destination, days, pdfBase64 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send");
+      setSent(true);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSending(false);
+      setStatus("");
+    }
+  };
+
+  return (
+    <div style={{ position:"fixed",inset:0,background:"rgba(28,43,51,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,padding:20 }}>
+      <div style={{ background:"#fff",borderRadius:20,padding:"28px 24px",width:"100%",maxWidth:380,fontFamily:"'Nunito',sans-serif",boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:800,margin:0,color:"#1C2B33" }}>📧 Email Itinerary</h3>
+          <button onClick={onClose} style={{ background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#8A9BA5",lineHeight:1 }}>×</button>
+        </div>
+
+        {sent ? (
+          <div style={{ textAlign:"center",padding:"16px 0" }}>
+            <div style={{ fontSize:36,marginBottom:8 }}>✅</div>
+            <p style={{ fontSize:14,fontWeight:700,color:"#2D8A4E",marginBottom:4 }}>Itinerary sent!</p>
+            <p style={{ fontSize:12,color:"#8A9BA5" }}>Check {email} for your {destination} itinerary.</p>
+            <button onClick={onClose} style={{ marginTop:16,padding:"10px 24px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#E8643A,#F09A3A)",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer" }}>
+              Done
+            </button>
+          </div>
+        ) : (
+          <>
+            <p style={{ fontSize:12,color:"#8A9BA5",marginBottom:12,lineHeight:1.5 }}>
+              We'll send your {destination} itinerary with a visual PDF attachment so you can access it on the go.
+            </p>
+
+            <label style={{ display:"block",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:"#8A9BA5",marginBottom:4 }}>
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoFocus
+              onKeyDown={e => e.key === "Enter" && handleSend()}
+              style={{ width:"100%",padding:"11px 14px",borderRadius:10,border:"2px solid #F0EDE8",fontSize:14,fontWeight:600,boxSizing:"border-box",fontFamily:"'Nunito',sans-serif" }}
+            />
+
+            {error && (
+              <p style={{ fontSize:11,color:"#DC2626",marginTop:6,fontWeight:700 }}>⚠️ {error}</p>
+            )}
+
+            <div style={{ display:"flex",gap:8,marginTop:16 }}>
+              <button
+                onClick={handleSend}
+                disabled={!email.trim() || sending}
+                style={{
+                  flex:1,padding:"11px 0",borderRadius:10,border:"none",
+                  background: email.trim() && !sending ? "linear-gradient(135deg,#E8643A,#F09A3A)" : "#F0EDE8",
+                  color: email.trim() && !sending ? "#fff" : "#8A9BA5",
+                  fontSize:14,fontWeight:800,cursor: email.trim() && !sending ? "pointer" : "not-allowed",
+                }}
+              >
+                {sending ? (status || "Sending...") : "Send Itinerary"}
+              </button>
+              <button onClick={onClose} style={{ padding:"11px 18px",borderRadius:10,border:"2px solid #F0EDE8",background:"transparent",color:"#8A9BA5",fontSize:13,fontWeight:700,cursor:"pointer" }}>
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main WeeklyCalendar ────────────────────────────────────────────────────
 
 export default function WeeklyCalendar({ itinerary, activities, selectedIds, profile, onProfileChange, onBack, onBackToActivities, onNextStep, SaveTripButtonComponent }) {
@@ -679,7 +856,10 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
   const [isMobile, setIsMobile] = useState(false);
   const [mobileDay, setMobileDay] = useState(0);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const calendarGridRef = useRef(null);
   const [weatherByDate, setWeatherByDate] = useState({});   // date -> { icon, highF, label }
+  const [removedBlocks, setRemovedBlocks] = useState([]);   // nap/rest blocks removed by user
 
   // Fetch real weather on mount
   useEffect(() => {
@@ -715,9 +895,32 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
     };
     const onMouseUp = () => {
       if (resizeRef.current) {
+        const { blockId, dayIndex } = resizeRef.current;
         resizeRef.current = null;
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        // Adjust free time blocks that now overlap with the resized block
+        setDays(prev => prev.map((d, i) => {
+          if (i !== dayIndex) return d;
+          const resized = d.slots.find(s => s.id === blockId);
+          if (!resized) return d;
+          const rStart = timeToMins(resized.start);
+          const rEnd = rStart + (resized.duration_mins ?? 60);
+          const adjusted = [];
+          for (const slot of d.slots) {
+            if (slot.id === blockId) { adjusted.push(slot); continue; }
+            if (slot.title === "Free Time" && slot.type === "rest") {
+              const fStart = timeToMins(slot.start);
+              const fEnd = fStart + (slot.duration_mins ?? 0);
+              if (fEnd <= rStart || fStart >= rEnd) { adjusted.push(slot); }
+              else {
+                if (fStart < rStart && rStart - fStart >= 15) adjusted.push({ ...slot, duration_mins: rStart - fStart });
+                if (fEnd > rEnd && fEnd - rEnd >= 15) adjusted.push({ ...slot, id: slot.id + "-after", start: minsToTime(rEnd), duration_mins: fEnd - rEnd });
+              }
+            } else { adjusted.push(slot); }
+          }
+          return { ...d, slots: adjusted.sort((a, b) => timeToMins(a.start) - timeToMins(b.start)) };
+        }));
         // Delay clearing so the click event that follows mouseup can detect the resize
         setTimeout(() => { activeResizeHandleRef.current = false; }, 100);
       }
@@ -766,9 +969,17 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
   };
 
   const removeBlock = (dayIndex, blockId) => {
-    setDays(prev => prev.map((d, i) =>
-      i !== dayIndex ? d : { ...d, slots: d.slots.filter(s => s.id !== blockId) }
-    ));
+    setDays(prev => {
+      const day = prev[dayIndex];
+      const block = day?.slots.find(s => s.id === blockId);
+      // Save removed nap/rest/meal blocks so they can be re-placed from sidebar
+      if (block && (block.type === "nap" || block.type === "rest" || block.type === "meal") && block.title !== "Free Time") {
+        setRemovedBlocks(rb => [...rb, { ...block, _removedFrom: dayIndex }]);
+      }
+      return prev.map((d, i) =>
+        i !== dayIndex ? d : { ...d, slots: d.slots.filter(s => s.id !== blockId) }
+      );
+    });
   };
 
   const addCustomBlock = (dayIndex, blockData) => {
@@ -803,6 +1014,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
       location_name: activity.location ?? activity.address ?? null,
       hours: activity.hours,
       duration_category: activity.duration_category,
+      description: activity.notes ?? activity.description ?? null,
     };
     const actStart = timeToMins(newStart);
     const actEnd = actStart + dur;
@@ -844,6 +1056,20 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
     setShowMobileSidebar(false);
   };
 
+  const restoreBlock = (block, removedIndex) => {
+    // Put the removed nap/rest/meal block back on its original day
+    const targetDay = block._removedFrom ?? 0;
+    const restored = { ...block };
+    delete restored._removedFrom;
+    restored.id = restored.id + "-restored-" + Date.now();
+    setDays(prev => prev.map((d, i) => {
+      if (i !== targetDay) return d;
+      const slots = [...d.slots, restored].sort((a, b) => timeToMins(a.start) - timeToMins(b.start));
+      return { ...d, slots };
+    }));
+    setRemovedBlocks(rb => rb.filter((_, i) => i !== removedIndex));
+  };
+
   const updateBlock = (dayIndex, blockId, updates) => {
     setDays(prev => prev.map((d, i) => {
       if (i !== dayIndex) return d;
@@ -862,9 +1088,18 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
   const selectedActivities = (activities ?? []).filter(a => selectedIds?.has(a.id));
   const unplaced = selectedActivities.filter(a => !placedIds.has(a.id));
 
-  // Resolve editing block from state
+  // Build activity lookup map for descriptions
+  const activityMap = {};
+  for (const a of (activities ?? [])) { activityMap[a.id] = a; }
+
+  // Resolve editing block from state — include description from activity map
   const editingBlock = editingNotes
-    ? days[editingNotes.dayIndex]?.slots.find(s => s.id === editingNotes.blockId)
+    ? (() => {
+        const slot = days[editingNotes.dayIndex]?.slots.find(s => s.id === editingNotes.blockId);
+        if (!slot) return null;
+        const desc = slot.description || (slot.activityId && activityMap[slot.activityId]?.notes) || null;
+        return { ...slot, description: desc };
+      })()
     : null;
 
   const weeks = [];
@@ -879,28 +1114,29 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
   return (
     <div style={{ fontFamily:"'Nunito',sans-serif" }}>
       {/* Header — icon inline with title */}
-      <div style={{ textAlign:"center",marginBottom:12 }}>
-        <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"clamp(20px,5vw,26px)",fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",gap:10 }}>
+      <div style={{ textAlign:"center",marginBottom:8 }}>
+        <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"clamp(20px,5vw,26px)",fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",gap:10,margin:0 }}>
           <span style={{ fontSize:"clamp(24px,5vw,32px)" }}>🗓️</span>
           {profile?.destination ?? itinerary?.destination} Itinerary
         </h2>
-        <p style={{ color:"#8A9BA5",fontSize:13,marginTop:4 }}>
-          Tap a block to edit · Drag to reschedule · Use "Move to Day" on mobile
-        </p>
       </div>
 
-      {/* Edit buttons + Trip Intensity Meter — side by side */}
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:16,marginBottom:12,flexWrap:"wrap" }}>
-        <div style={{ display:"flex",gap:8,flexShrink:0 }}>
-          <button onClick={onBackToActivities} style={{ padding:"8px 14px",borderRadius:9,border:"2px solid #0B7A8E",background:"#fff",color:"#0B7A8E",fontSize:11,fontWeight:700,cursor:"pointer" }}>← Edit Activities</button>
-          <button onClick={onBack} style={{ padding:"8px 14px",borderRadius:9,border:"2px solid #F0EDE8",background:"transparent",color:"#8A9BA5",fontSize:11,fontWeight:700,cursor:"pointer" }}>← Edit Family</button>
+      {/* Edit buttons (left) + Trip Intensity Meter (centered) */}
+      <div className="no-print" style={{ display:"flex",alignItems:"center",justifyContent:"center",marginBottom:12,position:"relative" }}>
+        {/* Edit buttons — stacked on left */}
+        <div style={{ position:"absolute",left:0,display:"flex",flexDirection:"column",gap:4 }}>
+          <button onClick={onBackToActivities} style={{ padding:"6px 12px",borderRadius:9,border:"2px solid #0B7A8E",background:"#fff",color:"#0B7A8E",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>← Edit Activities</button>
+          <button onClick={onBack} style={{ padding:"6px 12px",borderRadius:9,border:"2px solid #F0EDE8",background:"transparent",color:"#8A9BA5",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>← Edit Family</button>
         </div>
+        {/* Centered meter */}
         <TripIntensityMeter tripIntensity={itinerary?.tripIntensity} days={days} />
       </div>
 
       {/* Schedule Controls Bar — wake/bed/nap adjustment below meter */}
       {onProfileChange && (
-        <ScheduleControlsBar profile={profile} onProfileChange={onProfileChange} />
+        <div className="no-print">
+          <ScheduleControlsBar profile={profile} onProfileChange={onProfileChange} />
+        </div>
       )}
 
       {isMobile ? (
@@ -980,6 +1216,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
                   setDragState={setDragState}
                   activeResizeHandleRef={activeResizeHandleRef}
                   mobile={true}
+                  activityMap={activityMap}
                 />
               </div>
             </div>
@@ -1018,6 +1255,31 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
                   </div>
                 );
               })}
+
+              {/* Removed nap/rest blocks */}
+              {removedBlocks.length > 0 && (
+                <>
+                  <div style={{ fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8A9BA5",marginTop:10,marginBottom:6,borderTop:"1px solid #F0EDE8",paddingTop:8 }}>
+                    Removed ({removedBlocks.length})
+                  </div>
+                  {removedBlocks.map((b, i) => {
+                    const emoji = b.type === "nap" ? "😴" : b.type === "meal" ? "🍽️" : "☁️";
+                    return (
+                      <div key={b.id + "-m-" + i} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px", borderRadius:8, background:b.type === "nap" ? "#F3F4F6" : "#FFF9F0", border:`1.5px solid ${b.type === "nap" ? "#D1D5DB" : "#F59E0B55"}`, marginBottom:6 }}>
+                        <span style={{ fontSize:15, flexShrink:0 }}>{emoji}</span>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:700, color:"#1C2B33" }}>{b.title}</div>
+                          <div style={{ fontSize:10, color:"#8A9BA5" }}>{b.duration_mins}m</div>
+                        </div>
+                        <button onClick={() => restoreBlock(b, i)}
+                          style={{ padding:"6px 10px", borderRadius:6, border:"none", background:"linear-gradient(135deg,#E8643A,#F09A3A)", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+                          ↩ Restore
+                        </button>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
 
@@ -1027,12 +1289,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
             <button onClick={() => window.print()} className="no-print" style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#E6F6F8", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
               🖨️ Print / PDF
             </button>
-            <button className="no-print" onClick={() => {
-              const dest = profile?.destination ?? itinerary?.destination ?? "Trip";
-              const subject = encodeURIComponent(`${dest} Itinerary — Toddler Trip`);
-              const body = encodeURIComponent(`Here's your ${dest} itinerary from Toddler Trip!\n\nTo get a PDF:\n1. Open this page in your browser\n2. Click "Print / PDF"\n3. Choose "Save as PDF" as destination\n4. Attach the saved PDF to your email\n\nOr view your trip online at toddlertrip.com`);
-              window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
-            }} style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#fff", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
+            <button className="no-print" onClick={() => setShowEmailModal(true)} style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#fff", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
               📧 Email
             </button>
             {onNextStep && (
@@ -1047,26 +1304,37 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
         <div style={{ display:"flex", gap:16, alignItems:"flex-start" }}>
           <CalendarSidebar
             unplaced={unplaced}
+            removedBlocks={removedBlocks}
             onDragStart={(activity) => setDragState({ active: true, source: "sidebar", activity })}
+            onRestoreBlock={restoreBlock}
           />
 
-          <div style={{ flex:1, minWidth:0 }}>
+          <div ref={calendarGridRef} style={{ flex:1, minWidth:0 }}>
             {weeks.map((week, wi) => (
-              <div key={wi} style={{ marginBottom:28 }}>
+              <div key={wi} className={wi > 0 ? "print-break" : undefined} style={{ marginBottom:28 }}>
+                {/* Print-only header repeat for page 2+ */}
+                {wi > 0 && (
+                  <div className="print-header" style={{ display:"none", textAlign:"center", marginBottom:8 }}>
+                    <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", gap:10, margin:0 }}>
+                      <span style={{ fontSize:26 }}>🗓️</span>
+                      {profile?.destination ?? itinerary?.destination} Itinerary
+                    </h2>
+                  </div>
+                )}
                 {weeks.length > 1 && (
                   <div style={{ fontSize:12, fontWeight:700, color:"#8A9BA5", textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>
                     Week {wi + 1}
                   </div>
                 )}
-                <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:8 }}>
+                <div className="week-scroll" style={{ display:"flex", gap:4, paddingBottom:8 }}>
                   <TimeGutter wakeMins={wakeMins} bedMins={bedMins} topOffset={DESKTOP_HEADER_H} />
                   {week.map((day) => {
                     const isWE = (() => { const d = new Date(day.date + "T00:00:00"); return d.getDay() === 0 || d.getDay() === 6; })();
                     return (
-                      <div key={day.day} style={{ flexShrink:0 }}>
+                      <div key={day.day} style={{ flex:1, minWidth:0 }}>
                         {(() => { const wx = weatherByDate[day.date] || getMockWeather(day.date); return (
                         <div style={{
-                          width:160, padding:"8px 10px", borderRadius:"10px 10px 0 0",
+                          padding:"8px 10px", borderRadius:"10px 10px 0 0",
                           background: isWE ? "linear-gradient(135deg,#FFF3E0,#FFF9F0)" : "linear-gradient(135deg,#E6F6F8,#F0FAFB)",
                           border:"1px solid #E8E4DF", borderBottom:"none",
                         }}>
@@ -1098,6 +1366,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
                           dragState={dragState}
                           setDragState={setDragState}
                           activeResizeHandleRef={activeResizeHandleRef}
+                          activityMap={activityMap}
                         />
                       </div>
                     );
@@ -1106,17 +1375,12 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
               </div>
             ))}
 
-            <div style={{ display:"flex", justifyContent:"center", marginTop:16, gap:12, flexWrap:"wrap", alignItems:"center" }}>
+            <div className="no-print" style={{ display:"flex", justifyContent:"center", marginTop:16, gap:12, flexWrap:"wrap", alignItems:"center" }}>
               {SaveTripButtonComponent && <SaveTripButtonComponent itinerary={currentItinerary} />}
-              <button onClick={() => window.print()} className="no-print" style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#E6F6F8", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
+              <button onClick={() => window.print()} style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#E6F6F8", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
                 🖨️ Print / PDF
               </button>
-              <button className="no-print" onClick={() => {
-                const dest = profile?.destination ?? itinerary?.destination ?? "Trip";
-                const subject = encodeURIComponent(`${dest} Itinerary — Toddler Trip`);
-                const body = encodeURIComponent(`Here's your ${dest} itinerary from Toddler Trip!\n\nTo get a PDF:\n1. Open this page in your browser\n2. Click "Print / PDF"\n3. Choose "Save as PDF" as destination\n4. Attach the saved PDF to your email\n\nOr view your trip online at toddlertrip.com`);
-                window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
-              }} style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#fff", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
+              <button onClick={() => setShowEmailModal(true)} style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#fff", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
                 📧 Email
               </button>
               {onNextStep && (
@@ -1131,7 +1395,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
               )}
             </div>
 
-            <details style={{ marginTop:12 }}>
+            <details className="no-print" style={{ marginTop:12 }}>
               <summary style={{ cursor:"pointer", fontSize:12, fontWeight:700, color:"#8A9BA5", padding:"6px 0" }}>View JSON Export</summary>
               <pre style={{ background:"#1C2B33", color:"#81D4C8", borderRadius:12, padding:16, fontSize:11, lineHeight:1.5, overflow:"auto", maxHeight:300, marginTop:6 }}>
                 {JSON.stringify(currentItinerary, null, 2)}
@@ -1159,6 +1423,16 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
           onSave={(updates) => updateBlock(editingNotes.dayIndex, editingNotes.blockId, updates)}
           onMoveToDay={moveBlock}
           onClose={() => setEditingNotes(null)}
+        />
+      )}
+
+      {/* Email itinerary modal */}
+      {showEmailModal && (
+        <EmailModal
+          destination={profile?.destination ?? itinerary?.destination ?? "Trip"}
+          days={days}
+          onClose={() => setShowEmailModal(false)}
+          calendarRef={calendarGridRef}
         />
       )}
     </div>

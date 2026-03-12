@@ -63,7 +63,7 @@ function ActivityCard({ activity, selected, onToggle, index, destination, isNonP
         </div>
         <p style={{ fontSize: 11, color: "var(--stone)", lineHeight: 1.4, marginBottom: 6 }}>{activity.notes}</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 10, color: "var(--stone)", marginBottom: 6 }}>
-          <span>🕐 {activity.hours}</span><span>⏱️ {formatDuration(activity.duration_mins)}</span><span>👶 {activity.age_range}</span>
+          <span>🕐 {activity.hours}</span>{formatDuration(activity.duration_mins) && <span>⏱️ {formatDuration(activity.duration_mins)}</span>}<span>👶 {activity.age_range}</span>
         </div>
         <ViatorButton activity={activity} destination={destination} />
       </div>

@@ -25,6 +25,7 @@ export function formatTimeShort(t) {
 }
 
 export function formatDuration(mins) {
+  if (mins == null || isNaN(mins)) return null;
   if (mins < 60) return mins + "m";
   const h = Math.floor(mins / 60);
   const m = mins % 60;

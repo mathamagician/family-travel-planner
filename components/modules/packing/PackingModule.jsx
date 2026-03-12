@@ -153,28 +153,41 @@ function CategorySection({ category, items, onToggle, collapsed, onToggleCollaps
           <span style={{ fontSize: 10, fontWeight: 700, color: allDone ? "#2D8A4E" : "#8A9BA5" }}>
             {packed}/{items.length}
           </span>
-          <span style={{ fontSize: 10, color: "#8A9BA5" }}>{collapsed ? "▸" : "▾"}</span>
+          <span style={{ fontSize: 16, fontWeight: 900, color: "#1C2B33", lineHeight: 1 }}>{collapsed ? "▸" : "▾"}</span>
         </button>
 
         {/* Inline chips + affiliate links — visible when expanded */}
         {!collapsed && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, flex: 1, minWidth: 0, alignItems: "center" }}>
-            {items.map(item => <PackingChip key={item.id} item={item} onToggle={onToggle} />)}
-            {items.filter(i => !i.packed && i.affiliate_search).slice(0, 3).map(i => (
-              <AffiliateButton key={`aff-${i.id}`} searchQuery={i.affiliate_search} />
-            ))}
-            {items.filter(i => !i.packed && RENTABLE.test(i.name)).slice(0, 2).map(i => (
-              <BabyQuipRentButton key={`rent-${i.id}`} name={i.name} />
+            {items.map(item => (
+              <span key={item.id} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+                <PackingChip item={item} onToggle={onToggle} />
+                {!item.packed && item.affiliate_search && <AffiliateButton searchQuery={item.affiliate_search} />}
+                {!item.packed && RENTABLE.test(item.name) && <BabyQuipRentButton name={item.name} />}
+              </span>
             ))}
           </div>
         )}
 
-        {/* Progress bar — visible when collapsed */}
+        {/* Mini checkboxes — visible when collapsed */}
         {collapsed && (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-            <div style={{ flex: 1, height: 4, borderRadius: 2, background: "#F0EDE8", overflow: "hidden" }}>
-              <div style={{ width: `${(packed / items.length) * 100}%`, height: "100%", background: allDone ? "#2D8A4E" : "#0B7A8E", borderRadius: 2, transition: "width .3s" }} />
-            </div>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 3, minWidth: 0, flexWrap: "wrap" }}>
+            {items.map(item => (
+              <div
+                key={item.id}
+                title={item.name}
+                onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
+                style={{
+                  width: 14, height: 14, borderRadius: 3, flexShrink: 0, cursor: "pointer",
+                  border: `1.5px solid ${item.packed ? "#2D8A4E" : "#D1CCC6"}`,
+                  background: item.packed ? "#2D8A4E" : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "background .15s",
+                }}
+              >
+                {item.packed && <span style={{ color: "#fff", fontSize: 7, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -153,10 +153,15 @@ input:focus,select:focus{outline:none;border-color:var(--ocean)!important;box-sh
 .drop-zone{transition:background .2s,border-color .2s}
 .drop-zone.drag-over{background:var(--sunset-light)!important;border-color:var(--sunset)!important}
 @media print{
-  @page{size:landscape;margin:0.4in}
+  @page{size:landscape;margin:0.3in}
   body{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   header,.no-print,button:not(.print-keep),.calendar-sidebar{display:none!important}
   main{padding:0!important;max-width:none!important}
   .print-break{page-break-before:always}
+  .print-header{display:block!important}
+  details{display:none!important}
+  .cal-block-desc{display:none!important}
+  footer,.print-hide-after{display:none!important}
+  div[style*="margin-top: 16px"]{margin-top:0!important}
 }
 `;
