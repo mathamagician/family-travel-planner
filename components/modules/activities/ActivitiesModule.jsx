@@ -71,7 +71,7 @@ function ActivityCard({ activity, selected, onToggle, index, destination, isNonP
   );
 }
 
-export default function ActivitiesModule({ profile, activities, setActivities, selectedIds, setSelectedIds, onNext, onBack }) {
+export default function ActivitiesModule({ profile, activities, setActivities, selectedIds, setSelectedIds, onNext, onBack, destPageBanner, onDismissBanner }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -143,6 +143,13 @@ export default function ActivitiesModule({ profile, activities, setActivities, s
 
   return (
     <div className="step-enter">
+      {destPageBanner && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#E6F6F8", border: "1.5px solid #0B7A8E33", borderRadius: 12, padding: "10px 16px", marginBottom: 10, marginTop: 8 }}>
+          <span style={{ fontSize: 14 }}>📍</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#0B7A8E" }}>You pre-selected activities from the {profile.destination} destination page</span>
+          <button onClick={onDismissBanner} style={{ marginLeft: 8, background: "none", border: "none", color: "#8A9BA5", cursor: "pointer", fontSize: 14, fontWeight: 800 }}>&times;</button>
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8, marginTop: 8 }}>
         <span style={{ fontSize: 28 }}>🎯</span>
         <div>

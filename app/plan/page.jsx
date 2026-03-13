@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import FamilyTravelPlanner from "../../components/FamilyTravelPlanner";
 
 export const metadata = {
@@ -9,5 +10,9 @@ export const metadata = {
 };
 
 export default function PlanPage() {
-  return <FamilyTravelPlanner />;
+  return (
+    <Suspense>
+      <FamilyTravelPlanner />
+    </Suspense>
+  );
 }

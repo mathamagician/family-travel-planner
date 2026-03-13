@@ -6,6 +6,7 @@
    ────────────────────────────────────────────────────────────────────────── */
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { DEFAULT_PROFILE, GLOBAL_CSS } from "./shared/config";
 import { trackEvent } from "./GoogleAnalytics";
 
@@ -101,11 +102,20 @@ function clearDraft() {
 /* ─── Main Orchestrator ─── */
 
 export default function FamilyTravelPlanner() {
+  const searchParams = useSearchParams();
+
   // Try restoring from session draft
   const draft = typeof window !== "undefined" ? loadDraft() : null;
 
+  // URL param ?destination= overrides draft/default
+  const urlDest = searchParams.get("destination");
+  const initialProfile = draft?.profile ?? DEFAULT_PROFILE;
+  if (urlDest && urlDest !== initialProfile.destination) {
+    initialProfile.destination = urlDest;
+  }
+
   const [step, setStep] = useState(draft?.step ?? 0);
-  const [profile, setProfile] = useState(draft?.profile ?? DEFAULT_PROFILE);
+  const [profile, setProfile] = useState(initialProfile);
   const [activities, setActivities] = useState(draft?.activities ?? []);
   const [selectedIds, setSelectedIds] = useState(draft?.selectedIds ?? new Set());
   const [itinerary, setItinerary] = useState(null);
@@ -114,6 +124,7 @@ export default function FamilyTravelPlanner() {
   const [packingItems, setPackingItems] = useState(draft?.packingItems ?? []);
   const [packingGenerated, setPackingGenerated] = useState(draft?.packingGenerated ?? false);
   const activitiesDestRef = useRef(draft?.activitiesDestination ?? "");
+  const [destPageBanner, setDestPageBanner] = useState(false);
 
   // Re-generate itinerary from restored draft (can't serialize functions/computed state)
   useEffect(() => {
@@ -121,6 +132,14 @@ export default function FamilyTravelPlanner() {
       const selected = activities.filter(a => selectedIds.has(a.id));
       if (selected.length > 0) setItinerary(generateItinerary(profile, selected));
     }
+    // Check for preselected activity names from destination page
+    try {
+      const raw = sessionStorage.getItem("toddlertrip_dest_preselect");
+      if (raw) {
+        sessionStorage.removeItem("toddlertrip_dest_preselect");
+        setDestPageBanner(true);
+      }
+    } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -211,6 +230,8 @@ export default function FamilyTravelPlanner() {
             setSelectedIds={setSelectedIds}
             onNext={goToItinerary}
             onBack={() => setStep(0)}
+            destPageBanner={destPageBanner}
+            onDismissBanner={() => setDestPageBanner(false)}
           />
         )}
 

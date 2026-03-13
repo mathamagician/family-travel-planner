@@ -269,30 +269,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Social Proof ── */}
-      <section style={{ padding: "56px 24px", background: CLOUD }}>
+      {/* ── Trust Badges ── */}
+      <section style={{ padding: "40px 24px", background: CLOUD }}>
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
-          <p style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".1em", color: OCEAN, marginBottom: 10 }}>TRUSTED BY FAMILIES</p>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 800, color: INK, marginBottom: 32 }}>
-            What parents are saying
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
-            {[
-              { quote: "This saved our San Diego trip. Having nap time built into the schedule meant no meltdowns and we actually enjoyed every activity.", name: "Sarah M.", detail: "Mom of 2 (ages 1 & 4)" },
-              { quote: "I usually spend hours on spreadsheets before a trip. Toddler Trip gave me a better plan in 5 minutes. The packing list alone was worth it.", name: "Jessica L.", detail: "Mom of 3 (ages 2, 5 & 8)" },
-              { quote: "Finally a travel tool that understands you can't do 6 attractions in a day with a toddler. Realistic, practical, and actually useful.", name: "Mike R.", detail: "Dad of 1 (age 3)" },
-            ].map((t, i) => (
-              <div key={i} style={{ background: "#fff", borderRadius: 16, padding: "24px 22px", border: `1px solid ${MIST}`, textAlign: "left" }}>
-                <div style={{ fontSize: 22, marginBottom: 10, color: "#F09A3A" }}>★★★★★</div>
-                <p style={{ fontSize: 13, color: STONE, lineHeight: 1.65, fontWeight: 600, marginBottom: 16, fontStyle: "italic" }}>
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-                <div style={{ fontSize: 13, fontWeight: 800, color: INK }}>{t.name}</div>
-                <div style={{ fontSize: 11, color: STONE, fontWeight: 600 }}>{t.detail}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 28, display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
             {[
               "Free forever — no credit card",
               "Your data stays private",
@@ -302,6 +282,11 @@ export default function LandingPage() {
                 ✓ {t}
               </span>
             ))}
+          </div>
+          <div style={{ marginTop: 20 }}>
+            <Link href="/destinations" style={{ fontSize: 13, fontWeight: 700, color: OCEAN, textDecoration: "none" }}>
+              Browse {">"}100 family destinations &rarr;
+            </Link>
           </div>
         </div>
       </section>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAdminClient } from "../../../lib/supabase/admin";
 import { DESTINATIONS, slugify, findDestination } from "../../_lib/destinations";
+import DestinationActivities from "./DestinationActivities";
 
 export const dynamic = "force-dynamic";
 
@@ -35,21 +36,6 @@ const STONE = "#8A9BA5";
 const MIST = "#F0EDE8";
 const CLOUD = "#FAFAF7";
 
-const TYPE_EMOJI = {
-  attraction: "🎡", museum: "🏛️", park: "🌳", beach: "🏖️",
-  zoo: "🦁", aquarium: "🐠", playground: "🛝", hike: "🥾",
-  show: "🎭", shopping: "🛍️", food: "🍕", garden: "🌷",
-  landmark: "📍", water_park: "💦", theme_park: "🎢", farm: "🐄",
-  tour: "🚌", sports: "⚽", custom: "📌",
-};
-
-const DURATION_LABELS = {
-  full_day: "Full Day",
-  half_day: "Half Day",
-  "2-4h": "2–4 hours",
-  "1-2h": "1–2 hours",
-  "<1h": "Under 1 hour",
-};
 
 export default async function DestinationPage({ params }) {
   const { slug } = await params;
@@ -165,67 +151,12 @@ export default async function DestinationPage({ params }) {
         </Link>
       </section>
 
-      {/* Activities Grid */}
+      {/* Interactive Activities Grid */}
       {acts.length > 0 && (
         <section style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px 48px" }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 800, marginBottom: 20 }}>
-            Top Family Activities
-          </h2>
-          <div className="act-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-            {acts.map((a) => {
-              const emoji = TYPE_EMOJI[a.type] || TYPE_EMOJI.custom;
-              return (
-                <div key={a.id} className="act-card" style={{ background: "#fff", borderRadius: 14, padding: "18px 16px", border: `1px solid ${MIST}` }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                    <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{emoji}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ fontSize: 15, fontWeight: 800, color: INK, marginBottom: 4, lineHeight: 1.3 }}>{a.name}</h3>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-                        {a.duration_category && (
-                          <span style={{ fontSize: 10, fontWeight: 700, background: "#E6F6F8", color: OCEAN, borderRadius: 6, padding: "2px 7px" }}>
-                            {DURATION_LABELS[a.duration_category] || a.duration_category}
-                          </span>
-                        )}
-                        {a.age_min != null && (
-                          <span style={{ fontSize: 10, fontWeight: 700, background: "#FAF5FF", color: "#7C3AED", borderRadius: 6, padding: "2px 7px" }}>
-                            Ages {a.age_min}–{a.age_max ?? "12"}+
-                          </span>
-                        )}
-                        {a.stroller_accessible && (
-                          <span style={{ fontSize: 10, fontWeight: 700, background: "#F0FAF4", color: "#2D8A4E", borderRadius: 6, padding: "2px 7px" }}>
-                            Stroller OK
-                          </span>
-                        )}
-                      </div>
-                      {a.ai_tips && (
-                        <p style={{ fontSize: 12, color: STONE, lineHeight: 1.5, fontWeight: 600, margin: 0 }}>
-                          {a.ai_tips.length > 120 ? a.ai_tips.slice(0, 120) + "..." : a.ai_tips}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <DestinationActivities activities={acts} city={dest.city} planUrl={planUrl} />
         </section>
       )}
-
-      {/* Plan CTA */}
-      <section style={{ padding: "48px 24px", textAlign: "center" }}>
-        <div style={{ maxWidth: 560, margin: "0 auto", background: "linear-gradient(135deg, #1C3B4A, #0B5C6E)", borderRadius: 24, padding: "44px 32px", boxShadow: "0 16px 48px rgba(11,122,142,.2)" }}>
-          <span style={{ fontSize: 40, display: "block", marginBottom: 12 }}>🧳</span>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 800, color: "#fff", marginBottom: 10 }}>
-            Ready to plan {dest.city}?
-          </h2>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,.75)", fontWeight: 600, marginBottom: 24, lineHeight: 1.6 }}>
-            Get a nap-aware, age-appropriate itinerary in about 5 minutes — free.
-          </p>
-          <Link href={planUrl} className="dest-cta" style={{ fontSize: 16, padding: "15px 40px" }}>
-            ✨ Plan My {dest.city} Trip
-          </Link>
-        </div>
-      </section>
 
       {/* FAQ */}
       <section style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px 56px" }}>
