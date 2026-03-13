@@ -61,7 +61,7 @@ function ShareBar({ shareToken, onCopy, copied }) {
   if (!shareToken) return null;
   const shareUrl = `${window.location.origin}/share/${shareToken}`;
   return (
-    <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+    <div className="no-print" style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center", background: "#F0FAF4", borderRadius: 12, padding: "10px 16px", border: "1.5px solid #2D8A4E" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#2D8A4E" }}>🔗 Trip saved!</span>
         <input readOnly value={shareUrl} onClick={e => e.target.select()}

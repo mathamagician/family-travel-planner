@@ -1114,7 +1114,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
   return (
     <div style={{ fontFamily:"'Nunito',sans-serif" }}>
       {/* Header — icon inline with title */}
-      <div style={{ textAlign:"center",marginBottom:8 }}>
+      <div className="calendar-title" style={{ textAlign:"center",marginBottom:8 }}>
         <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"clamp(20px,5vw,26px)",fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",gap:10,margin:0 }}>
           <span style={{ fontSize:"clamp(24px,5vw,32px)" }}>🗓️</span>
           {profile?.destination ?? itinerary?.destination} Itinerary
