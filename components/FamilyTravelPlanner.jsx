@@ -110,20 +110,22 @@ export default function FamilyTravelPlanner() {
   // URL param ?destination= overrides draft/default
   const urlDest = searchParams.get("destination");
   const initialProfile = draft?.profile ?? DEFAULT_PROFILE;
-  if (urlDest && urlDest !== initialProfile.destination) {
+  const urlDestOverride = urlDest && urlDest.toLowerCase() !== initialProfile.destination.trim().toLowerCase();
+  if (urlDestOverride) {
     initialProfile.destination = urlDest;
   }
 
   const [step, setStep] = useState(draft?.step ?? 0);
   const [profile, setProfile] = useState(initialProfile);
-  const [activities, setActivities] = useState(draft?.activities ?? []);
-  const [selectedIds, setSelectedIds] = useState(draft?.selectedIds ?? new Set());
+  // If URL destination changed, discard stale cached activities
+  const [activities, setActivities] = useState(urlDestOverride ? [] : (draft?.activities ?? []));
+  const [selectedIds, setSelectedIds] = useState(urlDestOverride ? new Set() : (draft?.selectedIds ?? new Set()));
   const [itinerary, setItinerary] = useState(null);
   const [shareToken, setShareToken] = useState(null);
   const [shareCopied, setShareCopied] = useState(false);
   const [packingItems, setPackingItems] = useState(draft?.packingItems ?? []);
   const [packingGenerated, setPackingGenerated] = useState(draft?.packingGenerated ?? false);
-  const activitiesDestRef = useRef(draft?.activitiesDestination ?? "");
+  const activitiesDestRef = useRef(urlDestOverride ? "" : (draft?.activitiesDestination ?? ""));
   const [destPageBanner, setDestPageBanner] = useState(false);
 
   // Re-generate itinerary from restored draft (can't serialize functions/computed state)

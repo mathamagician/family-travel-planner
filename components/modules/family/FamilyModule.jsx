@@ -74,9 +74,11 @@ export default function FamilyModule({ profile, setProfile, onNext }) {
         {/* Destination + Date + Days + Adults */}
         <div className="trip-fields-grid">
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <label style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--stone)", whiteSpace: "nowrap" }}>Destination</label>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", flexShrink: 0 }}>
+              <label style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--stone)", whiteSpace: "nowrap" }}>Destination</label>
+              <a href="/destinations" style={{ fontSize: 9, fontWeight: 700, color: "var(--ocean)", whiteSpace: "nowrap", textDecoration: "none" }}>Browse All</a>
+            </div>
             <input style={{ ...S, padding: "7px 10px", fontSize: 12 }} type="text" value={profile.destination} onChange={e => setProfile({ ...profile, destination: e.target.value })} placeholder="e.g. San Diego" />
-            <a href="/destinations" style={{ fontSize: 10, fontWeight: 700, color: "var(--ocean)", whiteSpace: "nowrap", textDecoration: "none" }}>Browse</a>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <label style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--stone)", whiteSpace: "nowrap" }}>Date</label>
