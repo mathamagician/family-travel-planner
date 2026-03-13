@@ -115,7 +115,8 @@ export default function FamilyTravelPlanner() {
     initialProfile.destination = urlDest;
   }
 
-  const [step, setStep] = useState(draft?.step ?? 0);
+  // Always start at step 0 — draft restores data but not position
+  const [step, setStep] = useState(0);
   const [profile, setProfile] = useState(initialProfile);
   // If URL destination changed, discard stale cached activities
   const [activities, setActivities] = useState(urlDestOverride ? [] : (draft?.activities ?? []));
