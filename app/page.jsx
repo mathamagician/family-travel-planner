@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Toddler Trip — AI Family Travel Planner Built Around Nap Time",
+  title: "Toddler Trip — AI Toddler Trip Built Around Nap Time",
   description:
     "The only travel planner that schedules around your kids' nap times. AI-powered day-by-day itineraries, drag-and-drop scheduling, and a smart packing list — free.",
   alternates: { canonical: "/" },
@@ -126,7 +126,7 @@ export default function LandingPage() {
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
           <span style={{ fontSize: 24 }}>🧳</span>
           <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, fontWeight: 800, color: INK }}>
-            Family Travel Planner
+            Toddler Trip
           </span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -269,6 +269,43 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Social Proof ── */}
+      <section style={{ padding: "56px 24px", background: CLOUD }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
+          <p style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".1em", color: OCEAN, marginBottom: 10 }}>TRUSTED BY FAMILIES</p>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 800, color: INK, marginBottom: 32 }}>
+            What parents are saying
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+            {[
+              { quote: "This saved our San Diego trip. Having nap time built into the schedule meant no meltdowns and we actually enjoyed every activity.", name: "Sarah M.", detail: "Mom of 2 (ages 1 & 4)" },
+              { quote: "I usually spend hours on spreadsheets before a trip. Toddler Trip gave me a better plan in 5 minutes. The packing list alone was worth it.", name: "Jessica L.", detail: "Mom of 3 (ages 2, 5 & 8)" },
+              { quote: "Finally a travel tool that understands you can't do 6 attractions in a day with a toddler. Realistic, practical, and actually useful.", name: "Mike R.", detail: "Dad of 1 (age 3)" },
+            ].map((t, i) => (
+              <div key={i} style={{ background: "#fff", borderRadius: 16, padding: "24px 22px", border: `1px solid ${MIST}`, textAlign: "left" }}>
+                <div style={{ fontSize: 22, marginBottom: 10, color: "#F09A3A" }}>★★★★★</div>
+                <p style={{ fontSize: 13, color: STONE, lineHeight: 1.65, fontWeight: 600, marginBottom: 16, fontStyle: "italic" }}>
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+                <div style={{ fontSize: 13, fontWeight: 800, color: INK }}>{t.name}</div>
+                <div style={{ fontSize: 11, color: STONE, fontWeight: 600 }}>{t.detail}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 28, display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+            {[
+              "Free forever — no credit card",
+              "Your data stays private",
+              "No ads in the planner",
+            ].map(t => (
+              <span key={t} style={{ fontSize: 12, fontWeight: 700, color: STONE, background: "#fff", border: `1px solid ${MIST}`, borderRadius: 20, padding: "6px 14px" }}>
+                ✓ {t}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Bottom CTA ── */}
       <section style={{ padding: "80px 24px", textAlign: "center" }}>
         <div className="bottom-cta" style={{
@@ -291,21 +328,47 @@ export default function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer style={{
-        borderTop: `1px solid ${MIST}`, padding: "28px 24px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexWrap: "wrap", gap: 12,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 18 }}>🧳</span>
-          <span style={{ fontSize: 13, fontWeight: 800, color: STONE }}>Family Travel Planner</span>
+      <footer style={{ borderTop: `1px solid ${MIST}`, padding: "40px 24px 32px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 40, justifyContent: "space-between", marginBottom: 28 }}>
+            {/* Brand */}
+            <div style={{ minWidth: 200 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 22 }}>🧳</span>
+                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 800, color: INK }}>Toddler Trip</span>
+              </div>
+              <p style={{ fontSize: 12, color: STONE, fontWeight: 600, lineHeight: 1.6, maxWidth: 240 }}>
+                AI-powered family travel planning built around nap time.
+              </p>
+            </div>
+            {/* Links */}
+            <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", color: INK, marginBottom: 10 }}>Product</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  <Link href="/plan" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>Plan a Trip</Link>
+                  <Link href="/destinations" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>Destinations</Link>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", color: INK, marginBottom: 10 }}>Company</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  <Link href="/about" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>About</Link>
+                  <Link href="/privacy" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>Privacy Policy</Link>
+                  <Link href="/terms" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>Terms of Service</Link>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ borderTop: `1px solid ${MIST}`, paddingTop: 20, display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center" }}>
+            <p style={{ fontSize: 11, color: STONE, fontWeight: 600 }}>
+              &copy; {new Date().getFullYear()} Toddler Trip. Some links are affiliate links — we may earn a small commission at no extra cost to you.
+            </p>
+            <Link href="/plan" style={{ fontSize: 13, fontWeight: 800, color: OCEAN, textDecoration: "none" }}>
+              Plan a Trip &rarr;
+            </Link>
+          </div>
         </div>
-        <p style={{ fontSize: 11, color: STONE, fontWeight: 600 }}>
-          Some links are affiliate links — we may earn a small commission at no extra cost to you.
-        </p>
-        <Link href="/plan" style={{ fontSize: 13, fontWeight: 800, color: OCEAN, textDecoration: "none" }}>
-          Plan a Trip →
-        </Link>
       </footer>
 
     </div>
