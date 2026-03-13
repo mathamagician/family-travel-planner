@@ -739,7 +739,7 @@ function EmailModal({ destination, days, onClose, calendarRef }) {
         hiddenEls.forEach(e => e.style.display = "none");
 
         const canvas = await html2canvas(el, {
-          scale: 2,
+          scale: 1.5,
           useCORS: true,
           backgroundColor: "#FAFAF7",
           logging: false,
@@ -752,7 +752,7 @@ function EmailModal({ destination, days, onClose, calendarRef }) {
         const imgW = canvas.width;
         const imgH = canvas.height;
         const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [imgW / 2, imgH / 2] });
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, imgW / 2, imgH / 2);
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.85), "JPEG", 0, 0, imgW / 2, imgH / 2);
         pdfBase64 = pdf.output("datauristring").split(",")[1];
       }
     } catch (e) {
@@ -761,12 +761,24 @@ function EmailModal({ destination, days, onClose, calendarRef }) {
 
     setStatus("Sending email...");
     try {
-      const res = await fetch("/api/send-itinerary", {
+      const body = JSON.stringify({ email: email.trim(), destination, days, pdfBase64 });
+      // Vercel limit is ~4.5MB; if payload is too large, retry without PDF
+      let res = await fetch("/api/send-itinerary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), destination, days, pdfBase64 }),
+        body,
       });
-      const data = await res.json();
+      if (res.status === 413 || (!res.ok && body.length > 3_500_000)) {
+        // Payload too large — retry without the PDF attachment
+        res = await fetch("/api/send-itinerary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim(), destination, days }),
+        });
+      }
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { throw new Error("Server error — please try again"); }
       if (!res.ok) throw new Error(data.error || "Failed to send");
       setSent(true);
     } catch (e) {
