@@ -163,9 +163,14 @@ export default function LandingPage() {
           Get a personalized day-by-day plan in minutes — free.
         </p>
 
-        <div className="hero-btns" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 36 }}>
+        <div className="hero-btns" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 16 }}>
           <Link href="/plan" className="hero-btn-primary">✨ Plan My Family Trip</Link>
           <a href="#how-it-works" className="hero-btn-secondary">See how it works ↓</a>
+        </div>
+        <div style={{ marginBottom: 36 }}>
+          <Link href="/destinations" style={{ fontSize: 13, fontWeight: 700, color: OCEAN, textDecoration: "none" }}>
+            Browse destinations &rarr;
+          </Link>
         </div>
 
         <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>

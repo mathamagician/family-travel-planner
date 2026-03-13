@@ -146,9 +146,6 @@ export default async function DestinationPage({ params }) {
             ? `Explore ${acts.length} family-friendly activities in ${dest.city} — filtered by age, scheduled around nap time, and ready to drop into your personalized itinerary.`
             : `Plan a family trip to ${dest.city} with AI-curated activities tailored to your kids' ages and nap schedule.`}
         </p>
-        <Link href={planUrl} className="dest-cta">
-          ✨ Plan a Trip to {dest.city}
-        </Link>
       </section>
 
       {/* Interactive Activities Grid */}

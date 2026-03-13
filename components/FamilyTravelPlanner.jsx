@@ -219,7 +219,7 @@ export default function FamilyTravelPlanner() {
         {/* Step 0: Family Profile */}
         {step === 0 && <>
           <MyTripsPanel onLoadTrip={handleLoadTrip} />
-          <FamilyModule profile={profile} setProfile={setProfile} onNext={() => { trackEvent("complete_profile", "funnel", profile.destination); const dest = profile.destination.trim().toLowerCase(); if (activitiesDestRef.current && activitiesDestRef.current !== dest) { setActivities([]); setSelectedIds(new Set()); } activitiesDestRef.current = dest; setStep(1); }} />
+          <FamilyModule profile={profile} setProfile={setProfile} onNext={() => { trackEvent("complete_profile", "funnel", profile.destination); const dest = profile.destination.trim().toLowerCase(); if (activitiesDestRef.current !== dest) { setActivities([]); setSelectedIds(new Set()); } activitiesDestRef.current = dest; setStep(1); }} />
         </>}
 
         {/* Step 1: Activities */}
