@@ -1301,7 +1301,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
         </div>
       ) : (
         /* ── Desktop: multi-column week view ── */
-        <div style={{ display:"flex", gap:16, alignItems:"flex-start" }}>
+        <div className="calendar-desktop" style={{ display:"flex", gap:16, alignItems:"flex-start" }}>
           <CalendarSidebar
             unplaced={unplaced}
             removedBlocks={removedBlocks}

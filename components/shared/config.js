@@ -163,5 +163,7 @@ input:focus,select:focus{outline:none;border-color:var(--ocean)!important;box-sh
   .cal-block-desc{display:none!important}
   footer,.print-hide-after{display:none!important}
   div[style*="margin-top: 16px"]{margin-top:0!important}
+  .calendar-desktop{display:block!important}
+  .week-scroll{display:flex!important;break-inside:auto;page-break-inside:auto}
 }
 `;
