@@ -30,16 +30,47 @@ function energyLevel(act) {
 
 /**
  * Build the daily time windows from wake/bed/nap schedule.
- * Returns array of { start, end, type: "free"|"nap"|"dinner" }
+ * Returns array of { start, end, type: "free"|"nap"|"lunch"|"dinner" }
+ *
+ * Lunch slot: ~60 min centered around 11:30-12:30, placed in the largest
+ * gap that doesn't overlap naps. If no gap is large enough, lunch is skipped.
  */
-function buildWindows(wake, bed, naps) {
+function buildWindows(wake, bed, naps, hasLunchRestaurant) {
   const dinnerStart = bed - 90;
+
+  // Find best lunch window: prefer 11:30-12:30 range, avoid nap overlap
+  let lunchSlot = null;
+  if (hasLunchRestaurant) {
+    const idealLunchStart = 11 * 60 + 30; // 11:30
+    const lunchDuration = 60;
+    // Build list of blocked ranges (naps)
+    const blocked = naps.map(n => ({ start: n.start, end: n.end }));
+    // Try ideal time first, then shift earlier/later
+    for (const offset of [0, -30, 30, -60, 60]) {
+      const tryStart = idealLunchStart + offset;
+      const tryEnd = tryStart + lunchDuration;
+      if (tryStart < wake + 60 || tryEnd > dinnerStart) continue;
+      const overlaps = blocked.some(b => tryStart < b.end + 15 && tryEnd > b.start - 15);
+      if (!overlaps) {
+        lunchSlot = { start: tryStart, end: tryEnd };
+        break;
+      }
+    }
+  }
+
   const w = [];
   let cur = wake;
-  for (const nap of naps) {
-    if (nap.start > cur + 45) w.push({ start: cur, end: nap.start, type: "free" });
-    w.push({ start: nap.start, end: nap.end, type: "nap" });
-    cur = nap.end + 15;
+
+  // Merge naps and optional lunch into a sorted list of fixed blocks
+  const fixedBlocks = [
+    ...naps.map(n => ({ ...n, type: "nap" })),
+    ...(lunchSlot ? [{ ...lunchSlot, type: "lunch" }] : []),
+  ].sort((a, b) => a.start - b.start);
+
+  for (const block of fixedBlocks) {
+    if (block.start > cur + 45) w.push({ start: cur, end: block.start, type: "free" });
+    w.push({ start: block.start, end: block.end, type: block.type });
+    cur = block.end + 15;
   }
   if (dinnerStart > cur + 45) w.push({ start: cur, end: dinnerStart, type: "free" });
   w.push({ start: dinnerStart, end: bed, type: "dinner" });
@@ -121,9 +152,10 @@ const DEFAULT_PATTERN = ["high", "low", "high", "med"];
  *
  * @param {Object} profile - Family profile
  * @param {Array} selectedActivities - Activities to schedule
+ * @param {Array} [selectedRestaurants] - Restaurants to schedule into meal slots
  * @returns {Object} { profile, destination, days, tripIntensity }
  */
-export function generateItinerary(profile, selectedActivities) {
+export function generateItinerary(profile, selectedActivities, selectedRestaurants = []) {
   const wake = timeToMins(profile.wake_time);
   const bed = timeToMins(profile.bed_time);
   const dinnerStart = bed - 90;
@@ -131,8 +163,15 @@ export function generateItinerary(profile, selectedActivities) {
     .map(n => ({ start: timeToMins(n.start), end: timeToMins(n.start) + n.duration }))
     .sort((a, b) => a.start - b.start);
 
-  const windows = buildWindows(wake, bed, naps);
   const numDays = profile.trip_length_days;
+
+  // Separate restaurants by meal type
+  const lunchRestaurants = selectedRestaurants.filter(r => r.meal_type === "lunch" || r.meal_type === "both");
+  const dinnerRestaurants = selectedRestaurants.filter(r => r.meal_type === "dinner" || r.meal_type === "both");
+  const hasLunchRestaurants = lunchRestaurants.length > 0;
+
+  // Build windows with lunch slots if we have lunch restaurants
+  const windows = buildWindows(wake, bed, naps, hasLunchRestaurants);
 
   // ── Classify activities ──────────────────────────────────────────────────
 
@@ -186,6 +225,11 @@ export function generateItinerary(profile, selectedActivities) {
     patternIdx++;
   }
 
+  // ── Build restaurant pools (round-robin across days) ────────────────
+
+  const lunchPool = [...lunchRestaurants];
+  const dinnerPool = [...dinnerRestaurants];
+
   // ── Build each day ─────────────────────────────────────────────────────
 
   const days = [];
@@ -219,6 +263,11 @@ export function generateItinerary(profile, selectedActivities) {
     // Track whether main activity placed for non-full-day days
     let placedMain = false;
 
+    // Pick a lunch restaurant for this day (round-robin)
+    const lunchRest = lunchPool.length > 0 ? lunchPool[d % lunchPool.length] : null;
+    // Pick a dinner restaurant for this day (round-robin)
+    const dinnerRest = dinnerPool.length > 0 ? dinnerPool[d % dinnerPool.length] : null;
+
     for (const w of windows) {
       if (w.type === "nap") {
         slots.push({
@@ -229,13 +278,52 @@ export function generateItinerary(profile, selectedActivities) {
         });
         continue;
       }
+      if (w.type === "lunch") {
+        if (lunchRest) {
+          slots.push({
+            title: lunchRest.name,
+            start: minsToTime(w.start),
+            duration_mins: lunchRest.duration_mins || 60,
+            location: lunchRest.location,
+            type: "meal",
+            restaurantId: lunchRest.id,
+            cuisine: lunchRest.cuisine,
+            price_range: lunchRest.price_range,
+            energy: "low",
+            description: lunchRest.notes ?? null,
+          });
+        } else {
+          slots.push({
+            title: "Lunch",
+            start: minsToTime(w.start),
+            duration_mins: w.end - w.start,
+            type: "meal",
+          });
+        }
+        continue;
+      }
       if (w.type === "dinner") {
-        slots.push({
-          title: "Dinner / Wind Down",
-          start: minsToTime(w.start),
-          duration_mins: w.end - w.start,
-          type: "rest",
-        });
+        if (dinnerRest) {
+          slots.push({
+            title: dinnerRest.name,
+            start: minsToTime(w.start),
+            duration_mins: dinnerRest.duration_mins || 75,
+            location: dinnerRest.location,
+            type: "meal",
+            restaurantId: dinnerRest.id,
+            cuisine: dinnerRest.cuisine,
+            price_range: dinnerRest.price_range,
+            energy: "low",
+            description: dinnerRest.notes ?? null,
+          });
+        } else {
+          slots.push({
+            title: "Dinner / Wind Down",
+            start: minsToTime(w.start),
+            duration_mins: w.end - w.start,
+            type: "rest",
+          });
+        }
         continue;
       }
 

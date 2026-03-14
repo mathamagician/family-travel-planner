@@ -67,6 +67,37 @@ export const TYPE_TO_PREF = {
   food:          [],
 };
 
+// Map restaurant cuisine types to restaurant preference keys
+export const CUISINE_TO_PREF = {
+  american:   ["american"],
+  mexican:    ["mexican"],
+  asian:      ["asian"],
+  italian:    ["italian"],
+  seafood:    ["seafood"],
+  pizza:      ["italian"],
+  sushi:      ["asian"],
+  bbq:        ["american"],
+  mediterranean: ["other"],
+  indian:     ["asian"],
+  thai:       ["asian"],
+  chinese:    ["asian"],
+  japanese:   ["asian"],
+  korean:     ["asian"],
+  vietnamese: ["asian"],
+  french:     ["other"],
+  greek:      ["other"],
+  caribbean:  ["other"],
+  southern:   ["american"],
+  tex_mex:    ["mexican"],
+  burger:     ["american"],
+  steakhouse: ["american"],
+  cafe:       ["other"],
+  bakery:     ["other"],
+  deli:       ["other"],
+  brunch:     ["american"],
+  other:      ["other"],
+};
+
 // Bookable activity types (for Viator affiliate links)
 export const BOOKABLE_TYPES = new Set([
   "attraction", "entertainment", "museum", "hike", "outdoors", "culture",

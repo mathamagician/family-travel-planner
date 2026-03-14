@@ -52,7 +52,8 @@ QUALITY RULES:
 - Include at least 2 free or low-cost options
 - At least 2 activities suitable for children under 2 (stroller_accessible: true)
 - Include at least one "full_day" activity if the destination has theme parks or major attractions
-- Practical notes focused on what parents with strollers and napping kids actually need to know`;
+- Practical notes focused on what parents with strollers and napping kids actually need to know
+- Do NOT include restaurants or dining spots — restaurants are handled separately. Focus only on activities, attractions, parks, museums, entertainment, and outdoor adventures.`;
 
 function parseDestination(destination) {
   // Strip common suffixes users may include

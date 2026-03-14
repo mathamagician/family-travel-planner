@@ -145,7 +145,7 @@ export default function ActivitiesModule({ profile, activities, setActivities, s
         <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--stone)" }}>Other Activities</span>
         <div style={{ flex: 1, height: 1, background: "var(--mist)", minWidth: 20 }} />
       </>}
-      <button onClick={onNext} disabled={!selectedIds.size} style={{ padding: "7px 16px", borderRadius: 9, border: "none", background: selectedIds.size ? "linear-gradient(135deg,var(--sunset),#F09A3A)" : "var(--mist)", color: selectedIds.size ? "#fff" : "var(--stone)", fontSize: 11, fontWeight: 800, cursor: selectedIds.size ? "pointer" : "not-allowed", boxShadow: selectedIds.size ? "0 4px 12px rgba(232,100,58,.3)" : "none", flexShrink: 0 }}>Build Itinerary →</button>
+      <button onClick={onNext} disabled={!selectedIds.size} style={{ padding: "7px 16px", borderRadius: 9, border: "none", background: selectedIds.size ? "linear-gradient(135deg,var(--sunset),#F09A3A)" : "var(--mist)", color: selectedIds.size ? "#fff" : "var(--stone)", fontSize: 11, fontWeight: 800, cursor: selectedIds.size ? "pointer" : "not-allowed", boxShadow: selectedIds.size ? "0 4px 12px rgba(232,100,58,.3)" : "none", flexShrink: 0 }}>Restaurants →</button>
     </div>
   );
 
@@ -196,7 +196,7 @@ export default function ActivitiesModule({ profile, activities, setActivities, s
       {/* Bottom nav */}
       <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 20 }}>
         <button onClick={onBack} style={{ padding: "10px 24px", borderRadius: 9, border: "2px solid var(--mist)", background: "transparent", color: "var(--stone)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>← Family</button>
-        <button onClick={onNext} disabled={!selectedIds.size} style={{ padding: "10px 32px", borderRadius: 9, border: "none", background: selectedIds.size ? "linear-gradient(135deg,var(--sunset),#F09A3A)" : "var(--mist)", color: selectedIds.size ? "#fff" : "var(--stone)", fontSize: 12, fontWeight: 800, cursor: selectedIds.size ? "pointer" : "not-allowed", boxShadow: selectedIds.size ? "0 5px 16px rgba(232,100,58,.3)" : "none" }}>Build Itinerary →</button>
+        <button onClick={onNext} disabled={!selectedIds.size} style={{ padding: "10px 32px", borderRadius: 9, border: "none", background: selectedIds.size ? "linear-gradient(135deg,var(--sunset),#F09A3A)" : "var(--mist)", color: selectedIds.size ? "#fff" : "var(--stone)", fontSize: 12, fontWeight: 800, cursor: selectedIds.size ? "pointer" : "not-allowed", boxShadow: selectedIds.size ? "0 5px 16px rgba(232,100,58,.3)" : "none" }}>Restaurants →</button>
       </div>
     </div>
   );

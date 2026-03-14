@@ -19,6 +19,7 @@ import SaveTripButton from "./SaveTripButton";
 // Modules
 import FamilyModule from "./modules/family/FamilyModule";
 import ActivitiesModule from "./modules/activities/ActivitiesModule";
+import RestaurantsModule from "./modules/restaurants/RestaurantsModule";
 import WeeklyCalendar from "./WeeklyCalendar";
 import PackingModule from "./modules/packing/PackingModule";
 
@@ -121,6 +122,8 @@ export default function FamilyTravelPlanner() {
   // If URL destination changed, discard stale cached activities
   const [activities, setActivities] = useState(urlDestOverride ? [] : (draft?.activities ?? []));
   const [selectedIds, setSelectedIds] = useState(urlDestOverride ? new Set() : (draft?.selectedIds ?? new Set()));
+  const [restaurants, setRestaurants] = useState(urlDestOverride ? [] : (draft?.restaurants ?? []));
+  const [selectedRestaurantIds, setSelectedRestaurantIds] = useState(urlDestOverride ? new Set() : (draft?.selectedRestaurantIds ? new Set(draft.selectedRestaurantIds) : new Set()));
   const [itinerary, setItinerary] = useState(null);
   const [shareToken, setShareToken] = useState(null);
   const [shareCopied, setShareCopied] = useState(false);
@@ -132,9 +135,10 @@ export default function FamilyTravelPlanner() {
 
   // Re-generate itinerary from restored draft (can't serialize functions/computed state)
   useEffect(() => {
-    if (draft && draft.step >= 2 && activities.length > 0) {
+    if (draft && draft.step >= 3 && activities.length > 0) {
       const selected = activities.filter(a => selectedIds.has(a.id));
-      if (selected.length > 0) setItinerary(generateItinerary(profile, selected));
+      const selectedRests = restaurants.filter(r => selectedRestaurantIds.has(r.id));
+      if (selected.length > 0) setItinerary(generateItinerary(profile, selected, selectedRests));
     }
     // Check for preselected activity names from destination page
     try {
@@ -159,19 +163,22 @@ export default function FamilyTravelPlanner() {
         profile,
         activities,
         selectedIds: [...selectedIds],
+        restaurants,
+        selectedRestaurantIds: [...selectedRestaurantIds],
         packingItems,
         packingGenerated,
         activitiesDestination: activitiesDestRef.current,
       });
     }
-  }, [step, profile, activities, selectedIds, packingItems, packingGenerated]);
+  }, [step, profile, activities, selectedIds, restaurants, selectedRestaurantIds, packingItems, packingGenerated]);
 
-  // Compute itinerary when moving to step 2
+  // Compute itinerary when moving to step 3
   const goToItinerary = () => {
     const selected = activities.filter(a => selectedIds.has(a.id));
-    setItinerary(generateItinerary(profile, selected));
+    const selectedRests = restaurants.filter(r => selectedRestaurantIds.has(r.id));
+    setItinerary(generateItinerary(profile, selected, selectedRests));
     trackEvent("build_itinerary", "funnel", profile.destination, selected.length);
-    setStep(2);
+    setStep(3);
   };
 
   // Load a saved trip: restore profile + activities then jump to itinerary
@@ -179,12 +186,17 @@ export default function FamilyTravelPlanner() {
     const snap = tripData.profile_snapshot;
     if (snap) setProfile(snap);
     const acts = tripData.activities_snapshot ?? [];
+    const rests = tripData.restaurants_snapshot ?? [];
     if (acts.length) {
       setActivities(acts);
       setSelectedIds(new Set(acts.map(a => a.id)));
-      setItinerary(generateItinerary(snap ?? profile, acts));
+      if (rests.length) {
+        setRestaurants(rests);
+        setSelectedRestaurantIds(new Set(rests.map(r => r.id)));
+      }
+      setItinerary(generateItinerary(snap ?? profile, acts, rests));
     }
-    setStep(2);
+    setStep(3);
   };
 
   const handleShareCopy = () => {
@@ -219,13 +231,13 @@ export default function FamilyTravelPlanner() {
         <UserMenu />
       </header>
 
-      <StepIndicator current={step} steps={["Family", "Activities", "Itinerary", "Packing"]} />
+      <StepIndicator current={step} steps={["Family", "Activities", "Restaurants", "Itinerary", "Packing"]} />
 
       <main style={{ padding: "8px 16px 40px", maxWidth: 1200, margin: "0 auto" }}>
         {/* Step 0: Family Profile */}
         {step === 0 && <>
           <MyTripsPanel onLoadTrip={handleLoadTrip} />
-          <FamilyModule profile={profile} setProfile={setProfile} onNext={() => { trackEvent("complete_profile", "funnel", profile.destination); const dest = profile.destination.trim().toLowerCase(); if (activitiesDestRef.current !== dest) { setActivities([]); setSelectedIds(new Set()); } activitiesDestRef.current = dest; setStep(1); }} />
+          <FamilyModule profile={profile} setProfile={setProfile} onNext={() => { trackEvent("complete_profile", "funnel", profile.destination); const dest = profile.destination.trim().toLowerCase(); if (activitiesDestRef.current !== dest) { setActivities([]); setSelectedIds(new Set()); setRestaurants([]); setSelectedRestaurantIds(new Set()); } activitiesDestRef.current = dest; setStep(1); }} />
         </>}
 
         {/* Step 1: Activities */}
@@ -236,7 +248,7 @@ export default function FamilyTravelPlanner() {
             setActivities={setActivities}
             selectedIds={selectedIds}
             setSelectedIds={setSelectedIds}
-            onNext={goToItinerary}
+            onNext={() => { trackEvent("complete_activities", "funnel", profile.destination, selectedIds.size); setStep(2); }}
             onBack={() => setStep(0)}
             destPageBanner={destPageBanner}
             onDismissBanner={() => setDestPageBanner(false)}
@@ -245,8 +257,21 @@ export default function FamilyTravelPlanner() {
           />
         )}
 
-        {/* Step 2: Itinerary / Schedule */}
-        {step === 2 && itinerary && <>
+        {/* Step 2: Restaurants */}
+        {step === 2 && (
+          <RestaurantsModule
+            profile={profile}
+            restaurants={restaurants}
+            setRestaurants={setRestaurants}
+            selectedIds={selectedRestaurantIds}
+            setSelectedIds={setSelectedRestaurantIds}
+            onNext={goToItinerary}
+            onBack={() => setStep(1)}
+          />
+        )}
+
+        {/* Step 3: Itinerary / Schedule */}
+        {step === 3 && itinerary && <>
           <ShareBar shareToken={shareToken} onCopy={handleShareCopy} copied={shareCopied} />
           <WeeklyCalendar
             itinerary={itinerary}
@@ -256,17 +281,17 @@ export default function FamilyTravelPlanner() {
             onProfileChange={setProfile}
             onBack={() => setStep(0)}
             onBackToActivities={() => setStep(1)}
-            onNextStep={() => { trackEvent("complete_itinerary", "funnel", profile.destination); setStep(3); }}
+            onNextStep={() => { trackEvent("complete_itinerary", "funnel", profile.destination); setStep(4); }}
             SaveTripButtonComponent={SaveBtn}
           />
           <ShareBar shareToken={shareToken} onCopy={handleShareCopy} copied={shareCopied} />
         </>}
 
-        {/* Step 3: Packing List */}
-        {step === 3 && <>
+        {/* Step 4: Packing List */}
+        {step === 4 && <>
           <ShareBar shareToken={shareToken} onCopy={handleShareCopy} copied={shareCopied} />
           <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 20 }}>
-            <button onClick={() => setStep(2)} style={{ padding: "9px 18px", borderRadius: 9, border: "2px solid var(--ocean)", background: "var(--cloud)", color: "var(--ocean)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>← Back to Itinerary</button>
+            <button onClick={() => setStep(3)} style={{ padding: "9px 18px", borderRadius: 9, border: "2px solid var(--ocean)", background: "var(--cloud)", color: "var(--ocean)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>← Back to Itinerary</button>
           </div>
           <PackingModule
             profile={profile}
