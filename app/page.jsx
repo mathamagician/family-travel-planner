@@ -346,7 +346,6 @@ export default function LandingPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                   <Link href="/plan" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>Plan a Trip</Link>
                   <Link href="/destinations" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>Destinations</Link>
-                  <Link href="/blog" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>Blog</Link>
                 </div>
               </div>
               <div>
