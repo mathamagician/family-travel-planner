@@ -128,6 +128,7 @@ export default function FamilyTravelPlanner() {
   const [packingGenerated, setPackingGenerated] = useState(draft?.packingGenerated ?? false);
   const activitiesDestRef = useRef(urlDestOverride ? "" : (draft?.activitiesDestination ?? ""));
   const [destPageBanner, setDestPageBanner] = useState(false);
+  const preselectedNamesRef = useRef(null);
 
   // Re-generate itinerary from restored draft (can't serialize functions/computed state)
   useEffect(() => {
@@ -139,6 +140,10 @@ export default function FamilyTravelPlanner() {
     try {
       const raw = sessionStorage.getItem("toddlertrip_dest_preselect");
       if (raw) {
+        const names = JSON.parse(raw);
+        if (Array.isArray(names) && names.length > 0) {
+          preselectedNamesRef.current = names;
+        }
         sessionStorage.removeItem("toddlertrip_dest_preselect");
         setDestPageBanner(true);
       }
@@ -235,6 +240,8 @@ export default function FamilyTravelPlanner() {
             onBack={() => setStep(0)}
             destPageBanner={destPageBanner}
             onDismissBanner={() => setDestPageBanner(false)}
+            preselectedNames={preselectedNamesRef.current}
+            clearPreselect={() => { preselectedNamesRef.current = null; }}
           />
         )}
 

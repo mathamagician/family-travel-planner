@@ -167,5 +167,6 @@ input:focus,select:focus{outline:none;border-color:var(--ocean)!important;box-sh
   .week-scroll{display:flex!important;break-inside:auto;page-break-inside:auto}
   .calendar-title{margin-bottom:2px!important}
   .calendar-title h2{font-size:18px!important}
+  .print-header{padding:2px 0 0!important;margin-top:0!important;page-break-before:avoid!important;break-before:avoid!important}
 }
 `;

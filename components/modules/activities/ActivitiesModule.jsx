@@ -71,7 +71,7 @@ function ActivityCard({ activity, selected, onToggle, index, destination, isNonP
   );
 }
 
-export default function ActivitiesModule({ profile, activities, setActivities, selectedIds, setSelectedIds, onNext, onBack, destPageBanner, onDismissBanner }) {
+export default function ActivitiesModule({ profile, activities, setActivities, selectedIds, setSelectedIds, onNext, onBack, destPageBanner, onDismissBanner, preselectedNames, clearPreselect }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -81,7 +81,15 @@ export default function ActivitiesModule({ profile, activities, setActivities, s
     try {
       const { activities: list } = await fetchActivities(profile);
       setActivities(list);
-      setSelectedIds(autoSelectIds(list, profile.preferences));
+      // If user came from destination page with preselected activities, match by name
+      if (preselectedNames?.length > 0) {
+        const lowerNames = new Set(preselectedNames.map(n => n.toLowerCase()));
+        const matched = new Set(list.filter(a => lowerNames.has(a.name.toLowerCase())).map(a => a.id));
+        setSelectedIds(matched.size > 0 ? matched : autoSelectIds(list, profile.preferences));
+        if (clearPreselect) clearPreselect();
+      } else {
+        setSelectedIds(autoSelectIds(list, profile.preferences));
+      }
     } catch (e) {
       console.error(e);
       setError("Generation failed: " + e.message);

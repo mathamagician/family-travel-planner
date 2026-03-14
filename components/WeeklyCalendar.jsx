@@ -714,7 +714,7 @@ function ScheduleControlsBar({ profile, onProfileChange }) {
 
 // ── Email Itinerary Modal ─────────────────────────────────────────────────
 
-function EmailModal({ destination, days, onClose, calendarRef }) {
+function EmailModal({ destination, days, onClose, calendarRef, weather }) {
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -762,7 +762,7 @@ function EmailModal({ destination, days, onClose, calendarRef }) {
 
     setStatus("Sending email...");
     try {
-      const body = JSON.stringify({ email: email.trim(), destination, days, pdfBase64 });
+      const body = JSON.stringify({ email: email.trim(), destination, days, pdfBase64, weather });
       // Vercel limit is ~4.5MB; if payload is too large, retry without PDF
       let res = await fetch("/api/send-itinerary", {
         method: "POST",
@@ -1419,8 +1419,8 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
             </details>
 
             {/* Branding footer — visible in PDF/print capture */}
-            <div className="print-header" style={{ textAlign:"center", padding:"16px 0 4px", marginTop:12, borderTop:"1px solid #F0EDE8" }}>
-              <span style={{ fontSize:11, fontWeight:700, color:"#8A9BA5" }}>
+            <div className="print-header" style={{ textAlign:"center", padding:"4px 0 0", marginTop:2, borderTop:"1px solid #F0EDE8", pageBreakInside:"avoid", breakInside:"avoid" }}>
+              <span style={{ fontSize:10, fontWeight:700, color:"#8A9BA5" }}>
                 Made with 🧳 <span style={{ fontWeight:800, color:"#0B7A8E" }}>Toddler Trip</span> — toddlertrip.com
               </span>
             </div>
@@ -1456,6 +1456,7 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
           days={days}
           onClose={() => setShowEmailModal(false)}
           calendarRef={calendarGridRef}
+          weather={weatherByDate}
         />
       )}
     </div>
