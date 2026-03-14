@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Toddler Trip — AI Toddler Trip Built Around Nap Time",
+  title: "Toddler Trip — AI Family Travel Planner Built Around Nap Time",
   description:
     "The only travel planner that schedules around your kids' nap times. AI-powered day-by-day itineraries, drag-and-drop scheduling, and a smart packing list — free.",
   alternates: { canonical: "/" },
