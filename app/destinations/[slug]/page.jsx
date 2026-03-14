@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getAdminClient } from "../../../lib/supabase/admin";
 import { DESTINATIONS, slugify, findDestination } from "../../_lib/destinations";
 import DestinationActivities from "./DestinationActivities";
+import WeatherWidget from "./WeatherWidget";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,18 @@ const STONE = "#8A9BA5";
 const MIST = "#F0EDE8";
 const CLOUD = "#FAFAF7";
 
+const TYPE_EMOJI = {
+  attraction: "🎡", museum: "🏛️", park: "🌳", beach: "🏖️",
+  zoo: "🦁", aquarium: "🐠", playground: "🛝", hike: "🥾",
+  show: "🎭", shopping: "🛍️", food: "🍕", garden: "🌷",
+  landmark: "📍", water_park: "💦", theme_park: "🎢", farm: "🐄",
+  tour: "🚌", sports: "⚽", custom: "📌",
+};
+
+const DURATION_LABELS = {
+  full_day: "Full Day", half_day: "Half Day",
+  "2-4h": "2–4 hours", "1-2h": "1–2 hours", "<1h": "Under 1 hour",
+};
 
 export default async function DestinationPage({ params }) {
   const { slug } = await params;
@@ -105,7 +118,7 @@ export default async function DestinationPage({ params }) {
         .act-card{transition:transform .15s,box-shadow .15s}.act-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08)}
         .dest-cta{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;border-radius:14px;border:none;background:linear-gradient(135deg,${SUNSET},#F09A3A);color:#fff;font-size:15px;font-weight:800;cursor:pointer;text-decoration:none;font-family:'Nunito',sans-serif;box-shadow:0 6px 20px rgba(232,100,58,.3);transition:transform .15s}
         .dest-cta:hover{transform:translateY(-2px)}
-        @media(max-width:640px){.act-grid{grid-template-columns:1fr!important}.faq-grid{grid-template-columns:1fr!important}}
+        @media(max-width:640px){.act-grid{grid-template-columns:1fr!important}.faq-grid{grid-template-columns:1fr!important}.enrichment-grid{grid-template-columns:1fr!important}}
       `}</style>
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
@@ -154,6 +167,93 @@ export default async function DestinationPage({ params }) {
           <DestinationActivities activities={acts} city={dest.city} planUrl={planUrl} />
         </section>
       )}
+
+      {/* Weather + Mini-Itinerary + Packing Tips */}
+      {acts.length > 0 && (() => {
+        // Build a sample 2-day mini-itinerary from top activities
+        const morning = acts.filter(a => ["1-2h", "<1h", "2-4h"].includes(a.duration_category)).slice(0, 2);
+        const afternoon = acts.filter(a => ["half_day", "2-4h"].includes(a.duration_category) && !morning.includes(a)).slice(0, 2);
+        const fullDay = acts.filter(a => a.duration_category === "full_day").slice(0, 1);
+        const sampleDays = [
+          { label: "Day 1 — Explore", blocks: [...morning.slice(0, 1), { name: "Lunch Break", icon: "🍕" }, ...afternoon.slice(0, 1)] },
+          { label: "Day 2 — Adventure", blocks: fullDay.length > 0 ? [fullDay[0]] : [...morning.slice(1, 2), { name: "Nap Time", icon: "😴" }, ...afternoon.slice(1, 2)] },
+        ].filter(d => d.blocks.length > 0);
+
+        // Packing tips based on activity types
+        const types = new Set(acts.map(a => a.type));
+        const tips = [
+          { text: "Sunscreen & hats for outdoor activities", show: types.has("park") || types.has("beach") || types.has("hike") || types.has("zoo") || types.has("playground") },
+          { text: "Comfortable walking shoes for the whole family", show: true },
+          { text: "Stroller or baby carrier", show: acts.some(a => a.stroller_accessible) },
+          { text: "Swimwear & water shoes", show: types.has("beach") || types.has("water_park") || types.has("aquarium") },
+          { text: "Snacks & water bottles", show: true },
+          { text: "Rain jacket or poncho (just in case)", show: true },
+          { text: "Small first-aid kit with band-aids", show: true },
+          { text: "Entertainment for transit (books, tablet, coloring)", show: true },
+          { text: "Hiking gear & bug spray", show: types.has("hike") },
+          { text: "Change of clothes for little ones", show: types.has("water_park") || types.has("beach") || types.has("playground") },
+        ].filter(t => t.show).slice(0, 8);
+
+        return (
+          <section style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px 48px" }}>
+            <div className="enrichment-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              {/* Left column: Weather + Packing */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <WeatherWidget city={dest.city} />
+
+                {/* Packing Tips */}
+                <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${MIST}`, padding: "20px 24px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em", color: OCEAN, marginBottom: 14 }}>
+                    Packing Tips for {dest.city}
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {tips.map((t, i) => (
+                      <li key={i} style={{ fontSize: 13, fontWeight: 600, color: INK, lineHeight: 1.5 }}>{t.text}</li>
+                    ))}
+                  </ul>
+                  <div style={{ marginTop: 14, fontSize: 12, fontWeight: 700, color: STONE }}>
+                    Get a full personalized packing list when you <a href={planUrl} style={{ color: OCEAN, textDecoration: "none", fontWeight: 800 }}>plan your trip</a>.
+                  </div>
+                </div>
+              </div>
+
+              {/* Right column: Mini-Itinerary */}
+              <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${MIST}`, padding: "20px 24px" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em", color: OCEAN, marginBottom: 14 }}>
+                  Sample Family Itinerary
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {sampleDays.map((day, di) => (
+                    <div key={di}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: INK, marginBottom: 8 }}>{day.label}</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {day.blocks.map((b, bi) => (
+                          <div key={bi} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#FAFAF7", borderRadius: 8, borderLeft: `3px solid ${OCEAN}` }}>
+                            <span style={{ fontSize: 16, flexShrink: 0 }}>{b.icon || (TYPE_EMOJI[b.type] || "📌")}</span>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{b.name}</div>
+                              {b.duration_category && (
+                                <div style={{ fontSize: 10, fontWeight: 600, color: STONE }}>
+                                  {DURATION_LABELS[b.duration_category] || b.duration_category}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 16, textAlign: "center" }}>
+                  <a href={planUrl} className="dest-cta" style={{ fontSize: 13, padding: "10px 24px" }}>
+                    Build Your Custom Itinerary
+                  </a>
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* FAQ */}
       <section style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px 56px" }}>
