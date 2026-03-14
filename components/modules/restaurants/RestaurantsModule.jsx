@@ -100,7 +100,7 @@ export default function RestaurantsModule({ profile, restaurants, setRestaurants
       setSelectedIds(autoSelectIds(list, profile.restaurants));
     } catch (e) {
       console.error(e);
-      setError("Generation failed: " + e.message);
+      setError(e.message);
       if (!restaurants.length) {
         const fallback = getSampleRestaurants();
         setRestaurants(fallback);

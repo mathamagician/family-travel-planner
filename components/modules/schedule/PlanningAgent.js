@@ -225,10 +225,12 @@ export function generateItinerary(profile, selectedActivities, selectedRestauran
     patternIdx++;
   }
 
-  // ── Build restaurant pools (round-robin across days) ────────────────
+  // ── Build restaurant pools (each restaurant scheduled once) ─────────
 
   const lunchPool = [...lunchRestaurants];
   const dinnerPool = [...dinnerRestaurants];
+  let lunchIdx = 0;
+  let dinnerIdx = 0;
 
   // ── Build each day ─────────────────────────────────────────────────────
 
@@ -263,13 +265,16 @@ export function generateItinerary(profile, selectedActivities, selectedRestauran
     // Track whether main activity placed for non-full-day days
     let placedMain = false;
 
-    // Pick a lunch restaurant for this day (round-robin)
-    const lunchRest = lunchPool.length > 0 ? lunchPool[d % lunchPool.length] : null;
-    // Pick a dinner restaurant for this day (round-robin, avoid same as lunch)
-    let dinnerRest = dinnerPool.length > 0 ? dinnerPool[d % dinnerPool.length] : null;
-    if (dinnerRest && lunchRest && dinnerRest.id === lunchRest.id && dinnerPool.length > 1) {
-      dinnerRest = dinnerPool[(d + 1) % dinnerPool.length];
+    // Pick a lunch restaurant for this day (each restaurant once)
+    const lunchRest = lunchIdx < lunchPool.length ? lunchPool[lunchIdx++] : null;
+    // Pick a dinner restaurant for this day (each restaurant once, avoid same as lunch)
+    let dinnerRest = dinnerIdx < dinnerPool.length ? dinnerPool[dinnerIdx] : null;
+    if (dinnerRest && lunchRest && dinnerRest.id === lunchRest.id) {
+      // Skip this one if it's the same as lunch, try next
+      dinnerIdx++;
+      dinnerRest = dinnerIdx < dinnerPool.length ? dinnerPool[dinnerIdx] : null;
     }
+    if (dinnerRest) dinnerIdx++;
 
     for (const w of windows) {
       if (w.type === "nap") {

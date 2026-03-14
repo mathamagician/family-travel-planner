@@ -29,7 +29,7 @@ export async function fetchRestaurants(profile) {
     }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "API error " + res.status);
+  if (!res.ok) throw new Error(data.detail || data.error || "API error " + res.status);
   const list = Array.isArray(data) ? data : (data.restaurants ?? []);
   if (!list.length) throw new Error("No restaurants returned");
   return { restaurants: list, source: data.source ?? "unknown" };
