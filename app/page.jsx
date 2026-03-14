@@ -1,4 +1,5 @@
 import Link from "next/link";
+import NewsletterSignup from "../components/NewsletterSignup";
 
 export const metadata = {
   title: "Toddler Trip — AI Family Travel Planner Built Around Nap Time",
@@ -317,6 +318,13 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Newsletter ── */}
+      <section style={{ padding: "0 24px 56px" }}>
+        <div style={{ maxWidth: 520, margin: "0 auto" }}>
+          <NewsletterSignup source="homepage" variant="card" />
+        </div>
+      </section>
+
       {/* ── Footer ── */}
       <footer style={{ borderTop: `1px solid ${MIST}`, padding: "40px 24px 32px" }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
@@ -338,6 +346,7 @@ export default function LandingPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                   <Link href="/plan" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>Plan a Trip</Link>
                   <Link href="/destinations" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>Destinations</Link>
+                  <Link href="/blog" style={{ fontSize: 13, fontWeight: 600, color: STONE, textDecoration: "none" }}>Blog</Link>
                 </div>
               </div>
               <div>

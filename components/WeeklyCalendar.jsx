@@ -8,6 +8,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { TYPE_CONFIG, CAT_LABELS, ENERGY_EMOJI_BY_TYPE, ENERGY_CONFIG } from "./shared/config";
 import { timeToMins, minsToTime, formatTime12, formatTimeShort, formatDateShort, getMockWeather, snapMins } from "./shared/utils";
+import { downloadICS } from "../lib/ics-export";
 
 // ── Schedule-specific Constants ───────────────────────────────────────────
 
@@ -1395,6 +1396,9 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
               <button onClick={() => setShowEmailModal(true)} style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#fff", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
                 📧 Email
               </button>
+              <button onClick={() => downloadICS({ destination: profile?.destination ?? itinerary?.destination ?? "Trip", days })} style={{ padding:"11px 18px", borderRadius:12, border:"2px solid #0B7A8E", background:"#fff", color:"#0B7A8E", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
+                📅 Calendar Export
+              </button>
               {onNextStep && (
                 <button onClick={onNextStep} style={{
                   padding:"11px 24px", borderRadius:12, border:"none",
@@ -1413,6 +1417,13 @@ export default function WeeklyCalendar({ itinerary, activities, selectedIds, pro
                 {JSON.stringify(currentItinerary, null, 2)}
               </pre>
             </details>
+
+            {/* Branding footer — visible in PDF/print capture */}
+            <div className="print-header" style={{ textAlign:"center", padding:"16px 0 4px", marginTop:12, borderTop:"1px solid #F0EDE8" }}>
+              <span style={{ fontSize:11, fontWeight:700, color:"#8A9BA5" }}>
+                Made with 🧳 <span style={{ fontWeight:800, color:"#0B7A8E" }}>Toddler Trip</span> — toddlertrip.com
+              </span>
+            </div>
           </div>
         </div>
       )}

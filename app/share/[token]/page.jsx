@@ -248,6 +248,9 @@ export default async function SharePage({ params }) {
           }}>
             ✨ Plan My Family Trip — Free
           </Link>
+          <p style={{ marginTop: 20, fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.45)" }}>
+            Made with <Link href="/" style={{ color: "rgba(255,255,255,.65)", textDecoration: "none", fontWeight: 800 }}>Toddler Trip</Link>
+          </p>
         </div>
       </main>
     </div>
