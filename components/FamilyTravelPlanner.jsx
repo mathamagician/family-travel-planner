@@ -186,7 +186,8 @@ export default function FamilyTravelPlanner() {
     const snap = tripData.profile_snapshot;
     if (snap) setProfile(snap);
     const acts = tripData.activities_snapshot ?? [];
-    const rests = tripData.restaurants_snapshot ?? [];
+    // Restaurants stored in profile_snapshot._restaurants_snapshot (no separate DB column)
+    const rests = snap?._restaurants_snapshot ?? [];
     if (acts.length) {
       setActivities(acts);
       setSelectedIds(new Set(acts.map(a => a.id)));
@@ -207,11 +208,13 @@ export default function FamilyTravelPlanner() {
   };
 
   // SaveTripButton wrapper — receives itinerary from WeeklyCalendar's current state
+  const selectedRestaurantsList = restaurants.filter(r => selectedRestaurantIds.has(r.id));
   const SaveBtn = ({ itinerary: currentItinerary }) => (
     <SaveTripButton
       profile={profile}
       activities={activities}
       selectedIds={selectedIds}
+      restaurants={selectedRestaurantsList}
       itinerary={currentItinerary ?? itinerary}
       onSaved={(data) => { if (data?.share_token) setShareToken(data.share_token); }}
     />

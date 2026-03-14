@@ -46,7 +46,7 @@ function buildWindows(wake, bed, naps, hasLunchRestaurant) {
     // Build list of blocked ranges (naps)
     const blocked = naps.map(n => ({ start: n.start, end: n.end }));
     // Try ideal time first, then shift earlier/later
-    for (const offset of [0, -30, 30, -60, 60]) {
+    for (const offset of [0, -30, 30, -60, 60, -90, 90]) {
       const tryStart = idealLunchStart + offset;
       const tryEnd = tryStart + lunchDuration;
       if (tryStart < wake + 60 || tryEnd > dinnerStart) continue;
@@ -265,8 +265,11 @@ export function generateItinerary(profile, selectedActivities, selectedRestauran
 
     // Pick a lunch restaurant for this day (round-robin)
     const lunchRest = lunchPool.length > 0 ? lunchPool[d % lunchPool.length] : null;
-    // Pick a dinner restaurant for this day (round-robin)
-    const dinnerRest = dinnerPool.length > 0 ? dinnerPool[d % dinnerPool.length] : null;
+    // Pick a dinner restaurant for this day (round-robin, avoid same as lunch)
+    let dinnerRest = dinnerPool.length > 0 ? dinnerPool[d % dinnerPool.length] : null;
+    if (dinnerRest && lunchRest && dinnerRest.id === lunchRest.id && dinnerPool.length > 1) {
+      dinnerRest = dinnerPool[(d + 1) % dinnerPool.length];
+    }
 
     for (const w of windows) {
       if (w.type === "nap") {

@@ -33,6 +33,7 @@ export async function POST(request) {
     name,
     profile,
     activities,
+    restaurants,
     itinerary,
   } = body;
 
@@ -42,6 +43,12 @@ export async function POST(request) {
 
   const startDate = itinerary.days[0]?.date;
   const endDate = itinerary.days[itinerary.days.length - 1]?.date;
+
+  // Store restaurants in profile_snapshot to avoid DB migration
+  const profileWithRestaurants = {
+    ...profile,
+    _restaurants_snapshot: restaurants ?? [],
+  };
 
   // 1. Create the trip record
   const { data: trip, error: tripError } = await supabase
@@ -53,7 +60,7 @@ export async function POST(request) {
       start_date: startDate,
       end_date: endDate,
       status: "planning",
-      profile_snapshot: profile,
+      profile_snapshot: profileWithRestaurants,
       activities_snapshot: activities ?? [],
     })
     .select()
@@ -83,9 +90,17 @@ export async function POST(request) {
     const blocks = (day.slots ?? []).map((slot, idx) => {
       const startMins = timeToMins(slot.start);
       const endMins = startMins + (slot.duration_mins ?? 60);
+
+      // Map slot types to DB block_type enum
+      let blockType = "activity";
+      if (slot.type === "nap") blockType = "nap";
+      else if (slot.type === "meal") blockType = "meal";
+      else if (slot.type === "rest") blockType = slot.title?.includes("Nap") ? "nap" : "meal";
+      else if (slot.type === "custom") blockType = "custom";
+
       return {
         trip_day_id: tripDay.id,
-        block_type: slot.type === "rest" ? (slot.title?.includes("Nap") ? "nap" : "meal") : "activity",
+        block_type: blockType,
         title: slot.title,
         start_time: minsToTime(startMins),
         end_time: minsToTime(endMins),

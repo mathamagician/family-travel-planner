@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSupabase } from "./Providers";
 
-export default function SaveTripButton({ profile, activities, selectedIds, itinerary, onSaved }) {
+export default function SaveTripButton({ profile, activities, selectedIds, restaurants, itinerary, onSaved }) {
   const { user } = useSupabase();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -31,6 +31,7 @@ export default function SaveTripButton({ profile, activities, selectedIds, itine
           name: tripName,
           profile,
           activities: selectedActivities,
+          restaurants: restaurants ?? [],
           itinerary,
         }),
       });
