@@ -72,6 +72,15 @@ function StarInput({ value, onChange }) {
   );
 }
 
+// Safely extract a displayable string from a value that may be an object with a `display` key
+// (the `hours` column is stored as { display: "..." } in Supabase)
+function displayStr(val) {
+  if (val == null) return null;
+  if (typeof val === "string") return val;
+  if (typeof val === "object" && val.display) return val.display;
+  return String(val);
+}
+
 export default function DestinationActivities({ activities, city, planUrl }) {
   const router = useRouter();
   const { user } = useSupabase();
@@ -285,8 +294,8 @@ export default function DestinationActivities({ activities, city, planUrl }) {
 
             {/* Details grid */}
             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 16px", fontSize: 13, marginBottom: 16 }}>
-              {detail.address && <><span style={{ fontWeight: 800, color: INK }}>Location</span><span style={{ color: STONE, fontWeight: 600 }}>{detail.address}</span></>}
-              {detail.hours && <><span style={{ fontWeight: 800, color: INK }}>Hours</span><span style={{ color: STONE, fontWeight: 600 }}>{detail.hours}</span></>}
+              {displayStr(detail.address) && <><span style={{ fontWeight: 800, color: INK }}>Location</span><span style={{ color: STONE, fontWeight: 600 }}>{displayStr(detail.address)}</span></>}
+              {displayStr(detail.hours) && <><span style={{ fontWeight: 800, color: INK }}>Hours</span><span style={{ color: STONE, fontWeight: 600 }}>{displayStr(detail.hours)}</span></>}
               {detail.admission_adult_usd != null && (
                 <><span style={{ fontWeight: 800, color: INK }}>Admission</span>
                 <span style={{ color: STONE, fontWeight: 600 }}>
