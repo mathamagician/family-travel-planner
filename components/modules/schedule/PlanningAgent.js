@@ -226,11 +226,13 @@ export function generateItinerary(profile, selectedActivities, selectedRestauran
   }
 
   // ── Build restaurant pools (each restaurant scheduled once) ─────────
+  // Track globally used IDs so "both" restaurants aren't scheduled twice
 
   const lunchPool = [...lunchRestaurants];
   const dinnerPool = [...dinnerRestaurants];
   let lunchIdx = 0;
   let dinnerIdx = 0;
+  const usedRestaurantIds = new Set();
 
   // ── Build each day ─────────────────────────────────────────────────────
 
@@ -265,16 +267,26 @@ export function generateItinerary(profile, selectedActivities, selectedRestauran
     // Track whether main activity placed for non-full-day days
     let placedMain = false;
 
-    // Pick a lunch restaurant for this day (each restaurant once)
-    const lunchRest = lunchIdx < lunchPool.length ? lunchPool[lunchIdx++] : null;
-    // Pick a dinner restaurant for this day (each restaurant once, avoid same as lunch)
-    let dinnerRest = dinnerIdx < dinnerPool.length ? dinnerPool[dinnerIdx] : null;
-    if (dinnerRest && lunchRest && dinnerRest.id === lunchRest.id) {
-      // Skip this one if it's the same as lunch, try next
-      dinnerIdx++;
-      dinnerRest = dinnerIdx < dinnerPool.length ? dinnerPool[dinnerIdx] : null;
+    // Pick a lunch restaurant for this day (each restaurant once globally)
+    let lunchRest = null;
+    while (lunchIdx < lunchPool.length) {
+      const candidate = lunchPool[lunchIdx++];
+      if (!usedRestaurantIds.has(candidate.id)) {
+        lunchRest = candidate;
+        usedRestaurantIds.add(candidate.id);
+        break;
+      }
     }
-    if (dinnerRest) dinnerIdx++;
+    // Pick a dinner restaurant for this day (each restaurant once globally)
+    let dinnerRest = null;
+    while (dinnerIdx < dinnerPool.length) {
+      const candidate = dinnerPool[dinnerIdx++];
+      if (!usedRestaurantIds.has(candidate.id)) {
+        dinnerRest = candidate;
+        usedRestaurantIds.add(candidate.id);
+        break;
+      }
+    }
 
     for (const w of windows) {
       if (w.type === "nap") {

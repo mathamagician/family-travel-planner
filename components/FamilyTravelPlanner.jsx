@@ -181,6 +181,14 @@ export default function FamilyTravelPlanner() {
     setStep(3);
   };
 
+  // Skip restaurants and go straight to itinerary (no restaurants on schedule)
+  const goToItinerarySkipRestaurants = () => {
+    const selected = activities.filter(a => selectedIds.has(a.id));
+    setItinerary(generateItinerary(profile, selected, []));
+    trackEvent("build_itinerary_skip_restaurants", "funnel", profile.destination, selected.length);
+    setStep(3);
+  };
+
   // Load a saved trip: restore profile + activities then jump to itinerary
   const handleLoadTrip = (tripData) => {
     const snap = tripData.profile_snapshot;
@@ -252,6 +260,7 @@ export default function FamilyTravelPlanner() {
             selectedIds={selectedIds}
             setSelectedIds={setSelectedIds}
             onNext={() => { trackEvent("complete_activities", "funnel", profile.destination, selectedIds.size); setStep(2); }}
+            onSkipRestaurants={goToItinerarySkipRestaurants}
             onBack={() => setStep(0)}
             destPageBanner={destPageBanner}
             onDismissBanner={() => setDestPageBanner(false)}

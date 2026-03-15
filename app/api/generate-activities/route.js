@@ -20,7 +20,7 @@ Each activity object MUST include ALL of these fields:
 {
   "id": "snake_case_unique_id",
   "name": "Official place name",
-  "type": "attraction" | "park" | "outdoors" | "culture" | "museum" | "food" | "entertainment" | "hike",
+  "type": "attraction" | "park" | "outdoors" | "culture" | "museum" | "entertainment" | "hike",
   "duration_category": "full_day" | "half_day" | "2-4h" | "1-2h" | "under_1h",
   "duration_mins_typical": <number: realistic middle estimate in minutes>,
   "duration_mins_min": <number: minimum realistic visit>,
@@ -143,7 +143,9 @@ export async function POST(request) {
         duration_mins: a.duration_mins_typical ?? a.duration_mins ?? 90,
         age_range: a.age_min != null ? `${a.age_min}–${a.age_max ?? 12}` : "0–12",
       }));
-      return Response.json({ activities: normalized, source: "cache" });
+      // Filter out any cached restaurant/food entries (handled by restaurant module now)
+      const filtered = normalized.filter(a => a.type !== "food");
+      return Response.json({ activities: filtered, source: "cache" });
     }
 
     // Phase A: Cache miss — generate with Claude
@@ -168,10 +170,13 @@ export async function POST(request) {
 
     if (!Array.isArray(activities)) throw new Error("Unexpected response format from AI");
 
-    // Phase A: Store in DB (non-blocking)
-    cacheActivities(activities, city, state);
+    // Filter out any restaurant/food entries (handled by restaurant module now)
+    const filtered = activities.filter(a => a.type !== "food");
 
-    return Response.json({ activities, source: "ai" });
+    // Phase A: Store in DB (non-blocking)
+    cacheActivities(filtered, city, state);
+
+    return Response.json({ activities: filtered, source: "ai" });
   } catch (error) {
     console.error("Activity generation error:", error);
     return Response.json({ error: "Generation failed", detail: error.message }, { status: 500 });

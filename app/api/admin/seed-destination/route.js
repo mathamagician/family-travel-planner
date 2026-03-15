@@ -17,9 +17,9 @@ function isAuthorized(request) {
 const CITY_SYSTEM_PROMPT = `You are an expert family travel planner specializing in trips with young children (ages 0-12).
 Generate exactly 40 real, family-friendly activities for the destination provided.
 CRITICAL: Respond with ONLY a valid JSON array. No markdown, no explanation. Start with [ and end with ].
-Each object: {"id":"snake_case","name":"Place name","type":"attraction"|"park"|"outdoors"|"culture"|"museum"|"food"|"entertainment"|"hike","duration_category":"full_day"|"half_day"|"2-4h"|"1-2h"|"under_1h","duration_mins_typical":<n>,"duration_mins_min":<n>,"duration_mins_max":<n>,"hours":"<human readable>","notes":"<2-3 parent tips>","location":"<full address>","age_min":<n>,"age_max":<n|null>,"stroller_accessible":true|false,"food_onsite":true|false,"food_nearby":true|false,"admission_adult_usd":<n|null>,"admission_child_usd":<n|null>,"booking_required":true|false,"affiliate":"<url>"}
+Each object: {"id":"snake_case","name":"Place name","type":"attraction"|"park"|"outdoors"|"culture"|"museum"|"entertainment"|"hike","duration_category":"full_day"|"half_day"|"2-4h"|"1-2h"|"under_1h","duration_mins_typical":<n>,"duration_mins_min":<n>,"duration_mins_max":<n>,"hours":"<human readable>","notes":"<2-3 parent tips>","location":"<full address>","age_min":<n>,"age_max":<n|null>,"stroller_accessible":true|false,"food_onsite":true|false,"food_nearby":true|false,"admission_adult_usd":<n|null>,"admission_child_usd":<n|null>,"booking_required":true|false,"affiliate":"<url>"}
 DURATION: full_day=6+h, half_day=3-5h, 2-4h=2-4h, 1-2h=1-2h, under_1h=<1h
-Include: 8+ toddler-friendly, 5+ free options, indoor+outdoor mix, parks, food markets, theme parks if applicable.`;
+Include: 8+ toddler-friendly, 5+ free options, indoor+outdoor mix, parks, theme parks if applicable. Do NOT include restaurants or dining spots — those are handled separately.`;
 
 const PARK_SYSTEM_PROMPT = `You are an expert national park guide specializing in family trips with young children (ages 0-12).
 Generate exactly 40 family-friendly trails, activities, and experiences for the national park provided.
